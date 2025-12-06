@@ -3,100 +3,50 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://samass-massage.onrender.com";
-
 export default function AdminLogin() {
-  const [username, setUsername] = useState(""); // identifiant Django (pas forcément un email)
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const ADMIN_PASSWORD = "badou2004"; // mot de passe admin
+
+  const handleLogin = (e: any) => {
     e.preventDefault();
-    setError("");
 
-    try {
-      const res = await fetch(`${API_URL}/api-token-auth/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username, // très important : "username" (pas "email")
-          password,
-        }),
-      });
-
-      if (!res.ok) {
-        if (res.status === 400) {
-          setError("Identifiants incorrects.");
-          return;
-        }
-
-        const txt = await res.text();
-        console.error("Erreur API login:", res.status, txt);
-        setError("Erreur interne. Essayez encore.");
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!data.token) {
-        console.error("Réponse sans token:", data);
-        setError("Réponse invalide du serveur.");
-        return;
-      }
-
-      // On enregistre le token pour l'admin
-      document.cookie = `admin_token=${data.token}; path=/; secure; SameSite=Strict;`;
-
-      // Redirection vers le dashboard Next.js
-      router.push("/admin-samass-98342/dashboard");
-    } catch (e) {
-      console.error("Erreur réseau login:", e);
-      setError("Erreur interne. Essayez encore.");
+    if (password !== ADMIN_PASSWORD) {
+      setError("Identifiants incorrects.");
+      return;
     }
+
+    // Flag de connexion
+    localStorage.setItem("samass_admin_logged", "true");
+
+    // Redirection
+    router.push("/admin-samass-98342/services");
   };
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D] flex items-center justify-center px-4">
-      <div className="bg-[#1A1A1A] p-8 rounded-xl shadow-xl w-full max-w-md">
-        <h1 className="text-3xl font-bold text-white text-center mb-6">
-          Espace Admin
-        </h1>
+    <div className="max-w-sm mx-auto pt-20">
+      <h1 className="text-2xl font-bold mb-4">Connexion Admin</h1>
 
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="text-gray-300 text-sm">Identifiant</label>
-            <input
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full p-3 mt-1 rounded bg-[#0D0D0D] border border-gray-700 text-white focus:border-emerald-500 outline-none"
-            />
-          </div>
+      <form onSubmit={handleLogin} className="flex flex-col gap-4">
+        <input
+          type="password"
+          placeholder="Mot de passe admin"
+          className="border p-2 rounded"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
-          <div>
-            <label className="text-gray-300 text-sm">Mot de passe</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 mt-1 rounded bg-[#0D0D0D] border border-gray-700 text-white focus:border-emerald-500 outline-none"
-            />
-          </div>
+        {error && <p className="text-red-500">{error}</p>}
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-
-          <button
-            type="submit"
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition font-semibold"
-          >
-            Connexion
-          </button>
-        </form>
-      </div>
+        <button
+          type="submit"
+          className="bg-black text-white p-2 rounded hover:bg-gray-800"
+        >
+          Se connecter
+        </button>
+      </form>
     </div>
   );
 }

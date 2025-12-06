@@ -4,37 +4,36 @@ import Image from "next/image";
 import Link from "next/link";
 import CardService from "./components/CardService";
 import ReservationButton from "./components/ReservationButton";
+import { useState, useEffect } from "react";
+
+type Service = {
+  id: number;
+  title: string;
+  description: string;
+  durations_prices: Record<string, number>;
+};
 
 export default function HomePage() {
-  const services = [
-    {
-      id: 1,
-      title: "Massage Relaxant Tonique",
-      description:
-        "Massage complet alternant gestes doux et toniques pour libérer les tensions et apaiser profondément.",
-      formulas: [{ duration: "1h", price: 80 }],
-    },
-    {
-      id: 2,
-      title: "Massage Tonique",
-      description:
-        "Massage dynamique et revitalisant pour stimuler la circulation et dénouer les contractures.",
-      formulas: [
-        { duration: "45 minutes", price: 50 },
-        { duration: "1h", price: 70 },
-      ],
-    },
-    {
-      id: 3,
-      title: "Massage Tantrique",
-      description:
-        "Approche consciente centrée sur la respiration, les sensations et la reconnexion au corps.",
-      formulas: [
-        { duration: "1h", price: 80 },
-        { duration: "1h30", price: 120 },
-      ],
-    },
-  ];
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("https://samass-massage.onrender.com/services/");
+        const data = await res.json();
+        setServices(data);
+      } catch (e) {
+        console.error("Erreur chargement services :", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, []);
+
+  if (loading) return <p className="text-center py-20">Chargement…</p>;
 
   return (
     <div>
@@ -56,7 +55,7 @@ export default function HomePage() {
     </h1>
 
     <p className="text-softgray text-lg max-w-lg mt-4">
-      Massages relaxants, toniques ou tantriques — une expérience douce,
+      Massages relaxants, toniques ou tantriques, une expérience douce,
       humaine et personnalisée, pensée pour vous offrir un vrai moment de
       présence et de détente à Quimper.
     </p>
@@ -65,7 +64,7 @@ export default function HomePage() {
       href="/services"
       className="inline-block bg-forest text-white mt-8 px-6 py-3 rounded-xl hover:bg-leaf transition"
     >
-      Découvrir nos massages
+      Découvrir mes massages
     </Link>
   </div>
 </section>
@@ -83,18 +82,24 @@ export default function HomePage() {
         </p>
       </section>
 
-      <section className="max-w-7xl mx-auto px-6 py-12">
-        <h2 className="text-3xl font-bold text-center text-forest mb-12">
-          Nos massages
-        </h2>
+      <section className="bg-pastel py-20 text-center">
+        <h1 className="text-4xl font-bold text-forest mb-4">Mes Massages</h1>
+       
+      </section>
 
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="max-w-7xl mx-auto px-6 py-16">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((s) => (
             <CardService
               key={s.id}
               title={s.title}
               description={s.description}
-              formulas={s.formulas}
+              formulas={Object.entries(s.durations_prices).map(
+                ([duration, price]) => ({
+                  duration: duration + " min",
+                  price: price / 100,
+                })
+              )}
               serviceId={s.id}
             />
           ))}
@@ -185,7 +190,7 @@ export default function HomePage() {
           Offrez-vous un vrai moment pour vous
         </h2>
         <p className="opacity-80 mb-6">
-          Massage relaxant, tonique ou tantrique — selon vos besoins du moment.
+          Massage relaxant, tonique ou tantrique selon vos besoins du moment.
         </p>
         <ReservationButton />
       </section>
