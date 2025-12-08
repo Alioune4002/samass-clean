@@ -312,12 +312,17 @@ class BookingViewSet(viewsets.ModelViewSet):
                 "Réservation annulée",
                 [
                     f"Votre réservation pour <strong>{booking.service.title}</strong> le <strong>{start_dt.strftime('%d/%m/%Y')}</strong> à <strong>{start_dt.strftime('%H:%M')}</strong> n’a pas été confirmée.",
-                    "Vous pouvez choisir un autre créneau sur le site.",
+                    "Sam a décliné pour raisons personnelles. Vous pouvez choisir un autre créneau ou lui écrire directement pour en savoir plus.",
+                    "<a href='https://samassbysam.com/contact' style='color:#047857;'>Contacter Sam</a>",
                 ],
             )
             mail = EmailMultiAlternatives(
                 subject="Votre réservation a été annulée – SAMASS",
-                body="Votre créneau a été libéré.",
+                body=(
+                    f"Votre créneau pour {booking.service.title} a été libéré. "
+                    "Sam a décliné pour raisons personnelles. "
+                    "Vous pouvez choisir un autre créneau ou le contacter : https://samassbysam.com/contact"
+                ),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[booking.client_email],
             )

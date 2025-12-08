@@ -103,7 +103,7 @@ export default function HomePage() {
       </section>
 
       <section className="max-w-6xl mx-auto px-6 py-12 bg-white border border-emerald-50 rounded-3xl shadow-sm">
-        <h2 className="text-2xl font-bold text-forest mb-6">
+        <h2 className="text-2xl font-bold text-forest mb-6 text-center">
           Massages au coeur de Quimper
         </h2>
         <div className="grid md:grid-cols-[1.2fr_0.8fr] gap-6 items-center">
@@ -118,7 +118,7 @@ export default function HomePage() {
               Réservez votre massage à Quimper ou contactez-moi pour choisir la formule (relaxant, tonique ou tantrique) et la durée idéale. Je reste disponible pour vous guider avant de bloquer un créneau.
             </p>
           </div>
-          <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-5 shadow-sm">
+          <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-5 shadow-sm text-center md:text-left">
             <h3 className="text-forest font-semibold mb-3">Ce que vous recevez</h3>
             <ul className="space-y-2 text-softgray text-sm">
               <li className="flex items-start gap-2">
