@@ -7,6 +7,8 @@ import ReservationButton from "./components/ReservationButton";
 import { useState, useEffect } from "react";
 import { getServices } from "@/lib/api";
 import { Service } from "@/lib/types";
+import useInterval from "./components/useInterval";
+import useInterval from "./components/useInterval";
 
 export default function HomePage() {
   const [services, setServices] = useState<Service[]>([]);
@@ -66,7 +68,7 @@ export default function HomePage() {
 
 
     
-      <section className="max-w-5xl mx-auto px-6 py-20 text-center">
+      <section className="max-w-5xl mx-auto px-6 py-20 text-center bg-gradient-to-b from-emerald-50 to-white rounded-3xl shadow-sm">
         <h2 className="text-3xl font-bold text-forest mb-6">
           Une approche douce & attentive
         </h2>
@@ -77,7 +79,7 @@ export default function HomePage() {
         </p>
       </section>
 
-      <section className="bg-pastel py-20 text-center">
+      <section className="bg-gradient-to-b from-white to-emerald-50 py-20 text-center">
         <h1 className="text-4xl font-bold text-forest mb-4">Mes Massages</h1>
        
       </section>
@@ -101,8 +103,28 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="max-w-6xl mx-auto px-6 py-12 bg-white border border-emerald-50 rounded-3xl shadow-sm">
+        <h2 className="text-2xl font-bold text-forest mb-4">
+          Massages à Quimper et dans le Finistère
+        </h2>
+        <p className="text-softgray leading-relaxed">
+          Basé à Quimper, j&apos;accompagne les habitants du Finistère pour des
+          massages relaxants, toniques ou tantriques. Chaque séance est
+          personnalisée : choix de la pression, du rythme et de la durée (60 à
+          90 minutes) pour répondre à vos besoins. Que vous cherchiez un massage
+          bien-être après le travail, une récupération musculaire ou une
+          expérience plus énergétique, je construis la séance sur-mesure.
+        </p>
+        <p className="text-softgray leading-relaxed mt-3">
+          Réservez votre massage à Quimper ou contactez-moi pour préparer un
+          créneau : je reste disponible pour conseiller la formule adaptée
+          (relaxant, tonique ou tantrique) et la durée idéale selon vos tensions
+          ou objectifs.
+        </p>
+      </section>
+
       
-      <section className="bg-pastel py-20">
+      <section className="bg-gradient-to-b from-emerald-50 to-white py-20">
         <div className="max-w-6xl mx-auto px-6">
           <h2 className="text-3xl font-bold text-center text-forest mb-10">
             Pourquoi choisir Samass ?
@@ -152,31 +174,7 @@ export default function HomePage() {
           Ils ont aimé leur séance
         </h2>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="p-6 bg-white rounded-xl shadow-card">
-            <p className="text-softgray italic mb-4">
-              “Un massage exceptionnel. Un vrai moment de lâcher prise dans un
-              cadre apaisant.”
-            </p>
-            <p className="font-semibold text-forest">— Maxime L.</p>
-          </div>
-
-          <div className="p-6 bg-white rounded-xl shadow-card">
-            <p className="text-softgray italic mb-4">
-              “Très professionnel, à l’écoute et bienveillant. Je suis sortie
-              totalement détendue.”
-            </p>
-            <p className="font-semibold text-forest">— Alex T.</p>
-          </div>
-
-          <div className="p-6 bg-white rounded-xl shadow-card">
-            <p className="text-softgray italic mb-4">
-              “Une expérience unique. On sent une vraie présence et une vraie
-              maîtrise des gestes.”
-            </p>
-            <p className="font-semibold text-forest">— Florian B.</p>
-          </div>
-        </div>
+        <TestimonialCarousel />
       </section>
 
      
@@ -189,6 +187,70 @@ export default function HomePage() {
         </p>
         <ReservationButton />
       </section>
+    </div>
+  );
+}
+
+function TestimonialCarousel() {
+  const slides = [
+    {
+      text: "Un massage exceptionnel. Un vrai moment de lâcher prise dans un cadre apaisant.",
+      author: "Maxime L.",
+    },
+    {
+      text: "Très professionnel, à l’écoute et bienveillant. Je suis sorti totalement détendu.",
+      author: "Alex T.",
+    },
+    {
+      text: "Une expérience unique. On sent une vraie présence et une vraie maîtrise des gestes.",
+      author: "Florian B.",
+    },
+    {
+      text: "Sammy sait exactement adapter la pression et le rythme. J'ai enfin retrouvé de la mobilité.",
+      author: "Julien R.",
+    },
+    {
+      text: "Cadre rassurant, écoute totale. C'est devenu mon rendez-vous mensuel pour souffler.",
+      author: "Nicolas P.",
+    },
+    {
+      text: "Massage tonique bluffant : récupération express après mes séances de sport.",
+      author: "Hugo M.",
+    },
+  ];
+
+  const [index, setIndex] = useState(0);
+  useInterval(() => {
+    setIndex((i) => (i + 1) % slides.length);
+  }, 5000);
+
+  return (
+    <div className="relative overflow-hidden">
+      <div
+        className="flex transition-transform duration-700"
+        style={{ transform: `translateX(-${index * 100}%)` }}
+      >
+        {slides.map((s, i) => (
+          <div key={i} className="min-w-full px-4 md:px-6">
+            <div className="p-6 bg-white rounded-xl shadow-card max-w-3xl mx-auto text-center">
+              <p className="text-softgray italic mb-4">{s.text}</p>
+              <p className="font-semibold text-forest">— {s.author}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-center gap-2 mt-4">
+        {slides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setIndex(i)}
+            className={`h-2 w-2 rounded-full ${
+              index === i ? "bg-forest" : "bg-gray-300"
+            }`}
+            aria-label={`Aller au témoignage ${i + 1}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
