@@ -44,13 +44,9 @@ export async function createAvailability(data: {
   });
 }
 
-export async function getAvailabilities(date?: string) {
-  const params = new URLSearchParams();
-  if (date) params.append("date", date);
-
-  return apiFetch<Availability[]>(
-    `/availabilities/${params.toString() ? `?${params.toString()}` : ""}`
-  );
+export async function getAvailabilities(_date?: string) {
+  // On récupère toutes les disponibilités et on filtre côté client si besoin.
+  return apiFetch<Availability[]>(`/availabilities/`);
 }
 
 export async function createBooking(data: {

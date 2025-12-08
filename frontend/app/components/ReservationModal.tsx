@@ -105,14 +105,16 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
     setApiError(null);
 
     try {
-      const data = await getAvailabilities(date);
-      const filtered = data.filter((a) => {
-        const slotMinutes =
-          (new Date(a.end_datetime).getTime() -
-            new Date(a.start_datetime).getTime()) /
-          60000;
-        return !a.is_booked && selectedDuration <= slotMinutes;
-      });
+      const data = await getAvailabilities();
+      const filtered = data
+        .filter((a) => a.start_datetime.slice(0, 10) === date)
+        .filter((a) => {
+          const slotMinutes =
+            (new Date(a.end_datetime).getTime() -
+              new Date(a.start_datetime).getTime()) /
+            60000;
+          return !a.is_booked && selectedDuration <= slotMinutes;
+        });
       setAvailabilities(filtered);
     } catch (e) {
       console.error(e);
