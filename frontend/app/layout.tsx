@@ -11,12 +11,14 @@ const inter = Inter({
 
 export const metadata = {
   metadataBase: new URL("https://samassbysam.com"),
-  title: {
-    default: "SAMASS – Massage & Relaxation à Quimper",
-    template: "%s | SAMASS Massage Quimper",
-  },
+  title: "SAMASS – Massage Quimper",
   description:
-    "Massages bien-être, relaxation, toniques et tantriques à Quimper (Finistère). Présence, douceur et écoute pour des séances sur-mesure.",
+    "Massages bien-être, tantrique, tonique et relaxant à Quimper. Présence, douceur et apaisement.",
+  icons: {
+    icon: "/images/samass-logo.jpeg",
+    shortcut: "/images/samass-logo.jpeg",
+    apple: "/images/samass-logo.jpeg",
+  },
   keywords: [
     "massage Quimper",
     "massage Finistère",
@@ -67,27 +69,21 @@ export const metadata = {
     },
   },
   openGraph: {
+    title: "SAMASS – Massages à Quimper",
+    description:
+      "Massage tantrique, tonique et relaxant à Quimper. Offrez-vous un vrai moment de détente.",
+    images: ["/images/samass-logo.jpeg"],
+    locale: "fr_FR",
     type: "website",
     url: "https://samassbysam.com",
-    title: "SAMASS – Massage à Quimper",
-    description:
-      "Massages relaxants, toniques et tantriques sur-mesure à Quimper et dans le Finistère.",
     siteName: "SAMASS Massage",
-    images: [
-      {
-        url: "https://samassbysam.com/images/logo.png",
-        width: 1200,
-        height: 630,
-        alt: "Cabinet de massage SAMASS",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "SAMASS – Massage à Quimper",
+    title: "SAMASS – Massages à Quimper",
     description:
-      "Massages relaxants, toniques et tantriques sur-mesure à Quimper et dans le Finistère.",
-    images: ["https://samassbysam.com/images/logo.png"],
+      "Massage tantrique, tonique et relaxant à Quimper. Offrez-vous un vrai moment de détente.",
+    images: ["/images/samass-logo.jpeg"],
   },
   robots: {
     index: true,
