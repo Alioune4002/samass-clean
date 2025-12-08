@@ -75,7 +75,7 @@ export const metadata = {
     siteName: "SAMASS Massage",
     images: [
       {
-        url: "https://samassbysam.com/images/about1.jpg",
+        url: "https://samassbysam.com/images/logo.png",
         width: 1200,
         height: 630,
         alt: "Cabinet de massage SAMASS",
@@ -87,7 +87,7 @@ export const metadata = {
     title: "SAMASS – Massage à Quimper",
     description:
       "Massages relaxants, toniques et tantriques sur-mesure à Quimper et dans le Finistère.",
-    images: ["https://samassbysam.com/images/about1.jpg"],
+    images: ["https://samassbysam.com/images/logo.png"],
   },
   robots: {
     index: true,
