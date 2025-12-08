@@ -91,18 +91,8 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-6 py-16 grid gap-10 lg:grid-cols-2 items-center">
-        <div className="relative aspect-[4/5] w-full order-2 lg:order-1">
-          <Image
-            src="/images/about2.jpg"
-            alt="Massage Samass"
-            fill
-            className="rounded-3xl object-cover shadow-xl"
-            sizes="(max-width: 1024px) 100vw, 50vw"
-          />
-        </div>
-
-        <div className="space-y-4 order-1 lg:order-2">
+      <section className="max-w-6xl mx-auto px-6 py-16 grid gap-10 lg:grid-cols-2 items-start">
+        <div className="space-y-4 order-1 lg:order-1">
           <h2 className="text-2xl md:text-3xl font-semibold text-forest">
             Mon intention pour vous
           </h2>
@@ -128,6 +118,15 @@ export default function AboutPage() {
               </p>
             </div>
           </div>
+        </div>
+        <div className="order-2 lg:order-2 bg-gradient-to-b from-emerald-50 to-white border border-emerald-50 rounded-3xl p-6 shadow-sm">
+          <h3 className="text-xl font-semibold text-forest mb-2">Ce que vous pouvez attendre</h3>
+          <ul className="text-softgray space-y-2 text-sm">
+            <li>• Accueil en douceur, respect et écoute</li>
+            <li>• Choix du rythme et de la pression adaptés à votre corps</li>
+            <li>• Huiles naturelles et ambiance calme</li>
+            <li>• Possibilité de massages plus longs selon votre besoin</li>
+          </ul>
         </div>
       </section>
 

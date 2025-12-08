@@ -387,7 +387,7 @@ function StepDate({
   return (
     <div>
       <p className="text-xs text-gray-500 mb-3">
-        Sélectionnez un jour parmi les 7 prochains.
+        Sélectionnez un jour parmi les prochains jours ou choisissez une date précise.
       </p>
       <div className="flex gap-2 overflow-x-auto pb-2">
         {days.map((d) => {
@@ -407,6 +407,15 @@ function StepDate({
             </button>
           );
         })}
+      </div>
+      <div className="mt-3">
+        <label className="text-xs text-gray-500 mb-1 block">Choisir une autre date</label>
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => onSelect(e.target.value)}
+          className="border rounded px-3 py-2 text-xs"
+        />
       </div>
       {loading && (
         <p className="mt-3 text-xs text-gray-400">Chargement des créneaux…</p>

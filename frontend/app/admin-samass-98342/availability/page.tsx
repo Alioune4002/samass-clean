@@ -19,6 +19,7 @@ export default function AdminAvailabilityPage() {
   const [manualDate, setManualDate] = useState("");
   const [manualStart, setManualStart] = useState("");
   const [manualEnd, setManualEnd] = useState("");
+  const [loading, setLoading] = useState(false);
 
   /* --------------------------------------------------------
      LOAD DATA
@@ -82,11 +83,11 @@ export default function AdminAvailabilityPage() {
       </p>
 
       {/* --- CALENDRIER --- */}
-      <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="timeGridWeek"
-        slotDuration="00:30:00"
-        selectable={true}
+        <FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          initialView="timeGridWeek"
+          slotDuration="00:30:00"
+          selectable={true}
         editable={false}
         height="auto"
         select={handleDateSelect}
@@ -155,10 +156,55 @@ export default function AdminAvailabilityPage() {
               alert("Impossible d'ajouter la disponibilité.");
             }
           }}
-          className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded"
-        >
-          Ajouter ce créneau
-        </button>
+            className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded"
+          >
+            Ajouter ce créneau
+          </button>
+      </div>
+
+      <div className="mt-8 bg-[#111111] border border-gray-800 p-4 rounded">
+        <h3 className="text-lg font-semibold mb-3">Liste des disponibilités</h3>
+        {availabilities.length === 0 ? (
+          <p className="text-gray-400 text-sm">Aucune disponibilité pour le moment.</p>
+        ) : (
+          <ul className="space-y-3">
+            {availabilities.map((a) => (
+              <li
+                key={a.id}
+                className="flex items-center justify-between bg-[#0D0D0D] border border-gray-800 rounded px-3 py-2 text-sm"
+              >
+                <div>
+                  <p className="text-white">
+                    {new Date(a.start_datetime).toLocaleString("fr-FR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}{" "}
+                    →{" "}
+                    {new Date(a.end_datetime).toLocaleTimeString("fr-FR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!confirm("Supprimer ce créneau ?")) return;
+                    try {
+                      await adminDeleteAvailability(a.id);
+                      loadData();
+                    } catch (err) {
+                      console.error(err);
+                      alert("Impossible de supprimer le créneau.");
+                    }
+                  }}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  Supprimer
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

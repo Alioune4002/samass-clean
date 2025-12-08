@@ -104,15 +104,15 @@ export default function HomePage() {
 
       <section className="max-w-6xl mx-auto px-6 py-12 bg-white border border-emerald-50 rounded-3xl shadow-sm">
         <h2 className="text-2xl font-bold text-forest mb-4">
-          Massages à Quimper et dans le Finistère
+          Massages au coeur de Quimper
         </h2>
         <p className="text-softgray leading-relaxed">
-          Basé à Quimper, j&apos;accompagne les habitants du Finistère pour des
+          Basé à Quimper, je vous accompagne pour des
           massages relaxants, toniques ou tantriques. Chaque séance est
-          personnalisée : choix de la pression, du rythme et de la durée (60 à
-          90 minutes) pour répondre à vos besoins. Que vous cherchiez un massage
+          personnalisée : choix de la pression, du rythme et de la durée 
+          pour répondre à vos besoins. Que vous cherchiez un massage
           bien-être après le travail, une récupération musculaire ou une
-          expérience plus énergétique, je construis la séance sur-mesure.
+          expérience plus sensorielle, je construis la séance sur-mesure.
         </p>
         <p className="text-softgray leading-relaxed mt-3">
           Réservez votre massage à Quimper ou contactez-moi pour préparer un
@@ -184,7 +184,12 @@ export default function HomePage() {
         <p className="opacity-80 mb-6">
           Massage relaxant, tonique ou tantrique selon vos besoins du moment.
         </p>
-        <ReservationButton />
+        <Link
+          href="/reservation"
+          className="inline-flex items-center justify-center rounded-full bg-white text-forest px-5 py-2.5 font-semibold hover:bg-emerald-50 transition"
+        >
+          Réserver un créneau
+        </Link>
       </section>
     </div>
   );
@@ -205,7 +210,7 @@ function TestimonialCarousel() {
       author: "Florian B.",
     },
     {
-      text: "Sammy sait exactement adapter la pression et le rythme. J'ai enfin retrouvé de la mobilité.",
+      text: "Bonne adaptation de la pression et du rythme. Superbe séance, vraiment !",
       author: "Julien R.",
     },
     {
