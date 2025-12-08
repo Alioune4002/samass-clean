@@ -24,7 +24,7 @@ class Availability(models.Model):
         ordering = ["start_datetime"]
 
     def __str__(self):
-        return f"{self.service.title} - {self.start_datetime}"
+        return f"Créneau {self.start_datetime} → {self.end_datetime}"
 
 
 class Booking(models.Model):

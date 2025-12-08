@@ -92,48 +92,63 @@ class BookingViewSet(viewsets.ModelViewSet):
     serializer_class = BookingSerializer
 
     def create(self, request, *args, **kwargs):
+        data = request.data
+        service_id = data.get("service") or data.get("service_id")
+        availability_id = data.get("availability") or data.get("availability_id")
+        duration_minutes = data.get("duration_minutes")
+        name = data.get("client_name")
+        email = data.get("client_email")
+        phone = data.get("client_phone", "")
+
+        if not all([service_id, availability_id, name, email, duration_minutes]):
+            return Response({"error": "Champs manquants."}, status=400)
+
         try:
-            data = request.data
-            service_id = data.get("service") or data.get("service_id")
-            availability_id = data.get("availability") or data.get("availability_id")
-            duration_minutes = data.get("duration_minutes")
-            name = data.get("client_name")
-            email = data.get("client_email")
-            phone = data.get("client_phone", "")
+            duration_value = int(duration_minutes)
+        except (TypeError, ValueError):
+            return Response({"error": "Durée invalide."}, status=400)
 
-            if not all([service_id, availability_id, name, email, duration_minutes]):
-                return Response({"error": "Champs manquants."}, status=400)
-
-            try:
-                duration_value = int(duration_minutes)
-            except (TypeError, ValueError):
-                return Response({"error": "Durée invalide."}, status=400)
-
+        try:
             with transaction.atomic():
-                availability = Availability.objects.select_for_update().get(pk=availability_id, is_booked=False)
+                availability = Availability.objects.select_for_update().get(
+                    pk=availability_id, is_booked=False
+                )
                 service = Service.objects.get(pk=service_id)
 
-                # Vérifie que la durée demandée existe pour le service
                 allowed_durations = [int(d) for d in service.durations_prices.keys()]
                 if duration_value not in allowed_durations:
-                    return Response({"error": "Durée non proposée pour ce service."}, status=400)
+                    return Response(
+                        {"error": "Durée non proposée pour ce service."}, status=400
+                    )
 
-                slot_minutes = int((availability.end_datetime - availability.start_datetime).total_seconds() / 60)
+                slot_minutes = int(
+                    (availability.end_datetime - availability.start_datetime).total_seconds()
+                    / 60
+                )
                 if duration_value > slot_minutes:
-                    return Response({"error": "Durée supérieure au créneau disponible."}, status=400)
+                    return Response(
+                        {"error": "Durée supérieure au créneau disponible."}, status=400
+                    )
 
-            booking = Booking.objects.create(
-                service=service,
-                availability=availability,
-                client_name=name,
-                client_email=email,
-                client_phone=phone,
-                duration_minutes=duration_value,
-                status="pending",
-            )
+                booking = Booking.objects.create(
+                    service=service,
+                    availability=availability,
+                    client_name=name,
+                    client_email=email,
+                    client_phone=phone,
+                    duration_minutes=duration_value,
+                    status="pending",
+                )
 
-            availability.is_booked = True
-            availability.save()
+                availability.is_booked = True
+                availability.save()
+        except Availability.DoesNotExist:
+            return Response({"error": "Créneau indisponible."}, status=400)
+        except Service.DoesNotExist:
+            return Response({"error": "Service introuvable."}, status=400)
+        except Exception as e:
+            logger.error(f"Erreur réservation : {str(e)}")
+            return Response({"error": "Erreur serveur."}, status=500)
 
         # Email HTML au client : demande en attente avec délai
         try:
@@ -184,12 +199,6 @@ class BookingViewSet(viewsets.ModelViewSet):
             logger.warning(f"Email admin non envoyé : {e}")
 
         return Response(BookingSerializer(booking).data, status=201)
-
-        except Availability.DoesNotExist:
-            return Response({"error": "Créneau indisponible."}, status=400)
-        except Exception as e:
-            logger.error(f"Erreur réservation : {str(e)}")
-            return Response({"error": "Erreur serveur."}, status=500)
 
     # CONFIRM BOOKING ────────────────
     @action(detail=True, methods=["post"])
