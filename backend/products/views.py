@@ -140,10 +140,9 @@ class BookingViewSet(viewsets.ModelViewSet):
                     (availability.end_datetime - availability.start_datetime).total_seconds()
                     / 60
                 )
-                required_minutes = duration_value + BUFFER_MINUTES
-                if required_minutes > slot_minutes:
+                if duration_value > slot_minutes:
                     return Response(
-                        {"error": "Le créneau est trop court pour cette durée (pause incluse)."},
+                        {"error": "Durée supérieure au créneau disponible."},
                         status=400,
                     )
 
@@ -226,13 +225,15 @@ class BookingViewSet(viewsets.ModelViewSet):
         try:
             admin_recipient = ADMIN_EMAIL or getattr(settings, "EMAIL_HOST_USER", None)
             if admin_recipient:
+                local_start = timezone.localtime(availability.start_datetime)
+                local_end = timezone.localtime(availability.end_datetime)
                 admin_html = render_email(
                     "Nouvelle demande de réservation",
                     [
                         f"<strong>Client :</strong> {name} ({email})",
                         f"<strong>Service :</strong> {service.title}",
                         f"<strong>Durée :</strong> {duration_value} min",
-                        f"<strong>Créneau :</strong> {availability.start_datetime} → {availability.end_datetime}",
+                        f"<strong>Créneau :</strong> {local_start.strftime('%d/%m/%Y %H:%M')} → {local_end.strftime('%H:%M')}",
                         f"<a href='{ADMIN_PORTAL_URL}' style='color:#047857;'>Ouvrir l’espace admin</a>",
                     ],
                 )

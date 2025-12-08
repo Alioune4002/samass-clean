@@ -1,8 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createBooking, getAvailabilities, getServices } from "../../lib/api";
 import { Availability, Service } from "@/lib/types";
+
+const timeOptions: Intl.DateTimeFormatOptions = {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Europe/Paris",
+};
+
+const dateOptions: Intl.DateTimeFormatOptions = {
+  weekday: "long",
+  day: "2-digit",
+  month: "long",
+  timeZone: "Europe/Paris",
+};
 
 type Props = {
   isOpen: boolean;
@@ -140,7 +154,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
           month: "short",
         }),
       }));
-      setAvailableDates(mapped.length ? mapped : days);
+      setAvailableDates(mapped);
       if (!selectedDate && mapped.length) {
         setSelectedDate(mapped[0].value);
         void handleSelectDate(mapped[0].value);
@@ -167,7 +181,14 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
       });
       setStep(5);
     } catch (err: any) {
-      setApiError(err?.message || "Erreur lors de la réservation.");
+      const msg = err?.message || "Erreur lors de la réservation.";
+      if (msg.includes("trop court") || msg.includes("Durée supérieure")) {
+        setApiError(
+          "Ce créneau est déjà partiellement pris. Choisissez un autre horaire ou contactez Sam."
+        );
+      } else {
+        setApiError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -420,6 +441,25 @@ function StepDate({
   onSelect,
   loading,
 }: StepDateProps) {
+  if (!days.length) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-gray-700 font-medium">
+          Aucun créneau n&apos;est disponible pour le moment.
+        </p>
+        <p className="text-sm text-gray-500">
+          Contactez Sam pour organiser un rendez-vous directement.
+        </p>
+        <Link
+          href="/contact"
+          className="inline-flex items-center justify-center rounded-full bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-500 transition"
+        >
+          Contacter Sam
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div>
       <p className="text-xs text-gray-500 mb-3">
@@ -464,9 +504,20 @@ function StepSlot({
 }: StepSlotProps) {
   if (!availabilities.length) {
     return (
-      <p className="text-sm text-gray-500">
-        Aucun créneau disponible pour cette date.
-      </p>
+      <div className="space-y-3">
+        <p className="text-sm text-gray-700 font-medium">
+          Aucun créneau disponible pour cette date.
+        </p>
+        <p className="text-sm text-gray-500">
+          Contactez Sam pour trouver un créneau sur-mesure.
+        </p>
+        <Link
+          href="/contact"
+          className="inline-flex items-center justify-center rounded-full bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:bg-emerald-500 transition"
+        >
+          Contacter Sam
+        </Link>
+      </div>
     );
   }
 
@@ -477,7 +528,10 @@ function StepSlot({
       </p>
       <div className="flex flex-wrap gap-2">
         {availabilities.map((a) => {
-          const start = a.start_datetime.split("T")[1]?.slice(0, 5) || "";
+          const start = new Date(a.start_datetime).toLocaleTimeString(
+            "fr-FR",
+            timeOptions
+          );
           const isActive = selectedAvailability?.id === a.id;
           return (
             <button
@@ -528,17 +582,14 @@ function StepClient({
         <div className="rounded-2xl bg-gray-50 border border-gray-200 p-3 text-xs text-gray-700">
           <p className="font-medium text-gray-900 mb-1">{service.title}</p>
           <p>
-            {new Date(
-              availability.start_datetime
-            ).toLocaleDateString("fr-FR", {
-              weekday: "long",
-              day: "2-digit",
-              month: "long",
-            })}{" "}
+            {new Date(availability.start_datetime).toLocaleDateString(
+              "fr-FR",
+              dateOptions
+            )}{" "}
             à{" "}
             {new Date(availability.start_datetime).toLocaleTimeString(
               "fr-FR",
-              { hour: "2-digit", minute: "2-digit" }
+              timeOptions
             )}
           </p>
           {duration && (
