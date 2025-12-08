@@ -266,11 +266,12 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
           {step === 5 && (
             <div className="text-center space-y-4 py-4">
               <p className="text-lg font-semibold text-gray-900">
-                Merci, votre demande de réservation est enregistrée 🙏
+                Demande envoyée 🙏
               </p>
               <p className="text-gray-600 text-sm">
-                Vous recevrez un email de confirmation ou une proposition
-                d&apos;ajustement de créneau.
+                Vous recevrez un email de confirmation ou de refus. Si vous n&apos;avez pas de réponse
+                au plus tard 2h avant l&apos;horaire choisi, considérez la demande annulée.
+                Pensez à vérifier vos spams pour être sûr de recevoir les emails.
               </p>
               <button
                 onClick={onClose}

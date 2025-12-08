@@ -1,5 +1,6 @@
 import logging
 from datetime import timedelta
+from django.utils import timezone
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
@@ -37,6 +38,18 @@ BOOKING_PARKING = getattr(settings, "BOOKING_PARKING", "Place 🅿️ 31")
 BOOKING_CODE = getattr(settings, "BOOKING_CODE", "clé3579clé")
 BOOKING_FLOOR = getattr(settings, "BOOKING_FLOOR", "RDC, première porte à gauche")
 BUFFER_MINUTES = 60  # Pause minimale entre deux massages
+
+
+def render_email(title: str, paragraphs: list[str]) -> str:
+    """Construit un HTML simple et lisible pour limiter le spam."""
+    paras_html = "".join(f"<p style='margin:0 0 12px;color:#1f2937;font-size:14px;'>{p}</p>" for p in paragraphs)
+    return f"""
+    <div style="max-width:540px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;background:#f8fafc;color:#0f172a;border-radius:12px;border:1px solid #e2e8f0;">
+      <h2 style="margin:0 0 16px;font-size:20px;color:#047857;">{title}</h2>
+      {paras_html}
+      <p style='margin:18px 0 0;font-size:12px;color:#6b7280;'>SAMASS — Massages à Quimper</p>
+    </div>
+    """
 
 
 # ─────────────────────────────────────────────
@@ -147,23 +160,26 @@ class BookingViewSet(viewsets.ModelViewSet):
                 availability.is_booked = True
                 availability.save()
 
-                booking_start = availability.start_datetime
-                booking_end = availability.start_datetime + timedelta(minutes=duration_value)
+                slot_start = availability.start_datetime
+                slot_end = availability.end_datetime
+
+                booking_start = slot_start
+                booking_end = slot_start + timedelta(minutes=duration_value)
                 buffer_end = booking_end + timedelta(minutes=BUFFER_MINUTES)
 
                 # Créneau avant le massage
-                if booking_start > availability.start_datetime:
+                if booking_start > slot_start:
                     Availability.objects.create(
-                        start_datetime=availability.start_datetime,
+                        start_datetime=slot_start,
                         end_datetime=booking_start,
                         is_booked=False,
                     )
 
                 # Créneau après le massage (après la pause)
-                if buffer_end < availability.end_datetime:
+                if buffer_end < slot_end:
                     Availability.objects.create(
                         start_datetime=buffer_end,
-                        end_datetime=availability.end_datetime,
+                        end_datetime=slot_end,
                         is_booked=False,
                     )
         except Availability.DoesNotExist:
@@ -176,14 +192,24 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         # Email texte au client : demande en attente avec délai
         try:
+            local_start = timezone.localtime(booking_start)
             text_body = (
                 f"Bonjour {name},\n\n"
                 f"Votre demande de massage {service.title} ({duration_value} min) est enregistrée pour "
-                f"{booking_start.strftime('%d/%m/%Y à %H:%M')}.\n\n"
+                f"{local_start.strftime('%d/%m/%Y à %H:%M')}.\n\n"
                 "Si vous ne recevez pas de confirmation au plus tard 2h avant l'heure du massage, "
                 "considérez que la demande est annulée.\n\n"
-                "Vous recevrez un email de confirmation ou de refus de la part de Sam.\n\n"
+                "Vous recevrez un email de confirmation ou de refus de la part de Sam. "
+                "Pensez à vérifier vos spams pour ne rien manquer.\n\n"
                 "À bientôt,\nSAMASS"
+            )
+            html_body = render_email(
+                "Demande de réservation reçue",
+                [
+                    f"Votre demande de massage <strong>{service.title}</strong> ({duration_value} min) est enregistrée pour <strong>{local_start.strftime('%d/%m/%Y à %H:%M')}</strong>.",
+                    "Si vous ne recevez pas de confirmation au plus tard 2h avant l'heure du massage, considérez la demande annulée.",
+                    "Vous recevrez un email de confirmation ou de refus. Pensez à vérifier vos spams.",
+                ],
             )
             mail = EmailMultiAlternatives(
                 subject="Votre demande de réservation – SAMASS",
@@ -191,6 +217,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[email],
             )
+            mail.attach_alternative(html_body, "text/html")
             mail.send()
         except Exception as e:
             logger.warning(f"Email client non envoyé : {e}")
@@ -199,16 +226,16 @@ class BookingViewSet(viewsets.ModelViewSet):
         try:
             admin_recipient = ADMIN_EMAIL or getattr(settings, "EMAIL_HOST_USER", None)
             if admin_recipient:
-                admin_html = f"""
-                <div style="font-family:Arial,sans-serif;">
-                  <h2>Nouvelle demande de réservation</h2>
-                  <p><strong>Client :</strong> {name} ({email})</p>
-                  <p><strong>Service :</strong> {service.title}</p>
-                  <p><strong>Durée :</strong> {duration_value} min</p>
-                  <p><strong>Créneau :</strong> {availability.start_datetime} → {availability.end_datetime}</p>
-                  <p><a href="{ADMIN_PORTAL_URL}" style="color:#10b981;">Ouvrir l’espace admin</a></p>
-                </div>
-                """
+                admin_html = render_email(
+                    "Nouvelle demande de réservation",
+                    [
+                        f"<strong>Client :</strong> {name} ({email})",
+                        f"<strong>Service :</strong> {service.title}",
+                        f"<strong>Durée :</strong> {duration_value} min",
+                        f"<strong>Créneau :</strong> {availability.start_datetime} → {availability.end_datetime}",
+                        f"<a href='{ADMIN_PORTAL_URL}' style='color:#047857;'>Ouvrir l’espace admin</a>",
+                    ],
+                )
                 admin_mail = EmailMultiAlternatives(
                     subject="Nouvelle demande de réservation – SAMASS",
                     body="Nouvelle demande de réservation.",
@@ -230,25 +257,37 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.save()
 
         try:
-            start_dt = booking.availability.start_datetime
+            start_dt = timezone.localtime(booking.availability.start_datetime)
+            text_body = (
+                f"Bonjour {booking.client_name},\n\n"
+                f"Je fais suite à votre demande de massage {booking.service.title} "
+                f"de {booking.duration_minutes} minutes.\n\n"
+                f"Je vous attends pour {start_dt.strftime('%H:%M')} le "
+                f"{start_dt.strftime('%d/%m/%Y')}.\n\n"
+                f"L’adresse : {BOOKING_LOCATION}\n"
+                f"Place 🅿️ : {BOOKING_PARKING}\n"
+                f"Code : {BOOKING_CODE}\n"
+                f"Accès : {BOOKING_FLOOR}\n\n"
+                "Merci de me prévenir en cas d’imprévu.\n\n"
+                "Cordialement,\nSam 🍃"
+            )
+            html_body = render_email(
+                "Réservation confirmée",
+                [
+                    f"Massage <strong>{booking.service.title}</strong> ({booking.duration_minutes} min).",
+                    f"Rendez-vous le <strong>{start_dt.strftime('%d/%m/%Y')}</strong> à <strong>{start_dt.strftime('%H:%M')}</strong>.",
+                    f"Adresse : {BOOKING_LOCATION}",
+                    f"Place 🅿️ : {BOOKING_PARKING} • Code : {BOOKING_CODE} • Accès : {BOOKING_FLOOR}",
+                    "Merci de prévenir en cas d’imprévu.",
+                ],
+            )
             mail = EmailMultiAlternatives(
                 subject="Votre réservation est confirmée – SAMASS",
-                body=(
-                    f"Bonjour {booking.client_name},\n\n"
-                    f"Je fais suite à votre demande de massage {booking.service.title} "
-                    f"de {booking.duration_minutes} minutes.\n\n"
-                    f"Je vous attends pour {start_dt.strftime('%H:%M')} le "
-                    f"{start_dt.strftime('%d/%m/%Y')}.\n\n"
-                    f"L’adresse : {BOOKING_LOCATION}\n"
-                    f"Place 🅿️ : {BOOKING_PARKING}\n"
-                    f"Code : {BOOKING_CODE}\n"
-                    f"Accès : {BOOKING_FLOOR}\n\n"
-                    "Merci de me prévenir en cas d’imprévu.\n\n"
-                    "Cordialement,\nSam 🍃"
-                ),
+                body=text_body,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[booking.client_email],
             )
+            mail.attach_alternative(html_body, "text/html")
             mail.send()
         except Exception as e:
             logger.warning(f"Email confirmation non envoyé : {e}")
@@ -267,13 +306,14 @@ class BookingViewSet(viewsets.ModelViewSet):
         availability.save()
 
         try:
-            html_content = html_booking_cancellation(
-                booking.client_name,
-                booking.service.title,
-                availability.start_datetime.date(),
-                availability.start_datetime.time(),
+            start_dt = timezone.localtime(availability.start_datetime)
+            html_content = render_email(
+                "Réservation annulée",
+                [
+                    f"Votre réservation pour <strong>{booking.service.title}</strong> le <strong>{start_dt.strftime('%d/%m/%Y')}</strong> à <strong>{start_dt.strftime('%H:%M')}</strong> n’a pas été confirmée.",
+                    "Vous pouvez choisir un autre créneau sur le site.",
+                ],
             )
-
             mail = EmailMultiAlternatives(
                 subject="Votre réservation a été annulée – SAMASS",
                 body="Votre créneau a été libéré.",
@@ -310,15 +350,23 @@ def contact_form_submit(request):
             name=name, email=email, phone=phone, message=message
         )
 
-        admin_email = getattr(settings, "EMAIL_HOST_USER", None)
+        admin_email = getattr(settings, "DEFAULT_FROM_EMAIL", None) or getattr(settings, "EMAIL_HOST_USER", None)
 
         # Email ADMIN (HTML)
         if admin_email:
-            html_admin = html_contact_notification(name, email, phone, message)
+            html_admin = render_email(
+                "Nouveau message de contact",
+                [
+                    f"<strong>Nom :</strong> {name}",
+                    f"<strong>Email :</strong> {email}",
+                    f"<strong>Téléphone :</strong> {phone or '—'}",
+                    f"<strong>Message :</strong><br/>{message}",
+                ],
+            )
 
             mail_admin = EmailMultiAlternatives(
                 subject=f"Nouveau message – {name}",
-                body="HTML email required.",
+                body=f"Message de {name} ({email}) : {message}",
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[admin_email],
             )
@@ -326,11 +374,18 @@ def contact_form_submit(request):
             mail_admin.send()
 
         # Email CLIENT (HTML)
-        html_client = html_contact_confirmation(name)
+        html_client = render_email(
+            "Votre message a bien été reçu",
+            [
+                f"Bonjour {name},",
+                "Merci pour votre message. Je reviens vers vous rapidement.",
+                "Pensez à vérifier vos spams pour ne rien manquer.",
+            ],
+        )
 
         mail_client = EmailMultiAlternatives(
             subject="Votre message a bien été reçu – SAMASS",
-            body="HTML email required.",
+            body="Merci pour votre message. Je reviens vers vous rapidement.",
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[email],
         )

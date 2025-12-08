@@ -103,23 +103,39 @@ export default function HomePage() {
       </section>
 
       <section className="max-w-6xl mx-auto px-6 py-12 bg-white border border-emerald-50 rounded-3xl shadow-sm">
-        <h2 className="text-2xl font-bold text-forest mb-4">
+        <h2 className="text-2xl font-bold text-forest mb-6">
           Massages au coeur de Quimper
         </h2>
-        <p className="text-softgray leading-relaxed">
-          Basé à Quimper, je vous accompagne pour des
-          massages relaxants, toniques ou tantriques. Chaque séance est
-          personnalisée : choix de la pression, du rythme et de la durée 
-          pour répondre à vos besoins. Que vous cherchiez un massage
-          bien-être après le travail, une récupération musculaire ou une
-          expérience plus sensorielle, je construis la séance sur-mesure.
-        </p>
-        <p className="text-softgray leading-relaxed mt-3">
-          Réservez votre massage à Quimper ou contactez-moi pour préparer un
-          créneau : je reste disponible pour conseiller la formule adaptée
-          (relaxant, tonique ou tantrique) et la durée idéale selon vos tensions
-          ou objectifs.
-        </p>
+        <div className="grid md:grid-cols-[1.2fr_0.8fr] gap-6 items-center">
+          <div className="space-y-4 text-center md:text-left">
+            <p className="text-softgray leading-relaxed">
+              Basé à Quimper, je vous accompagne pour des massages <span className="font-semibold text-forest">relaxants</span>, <span className="font-semibold text-forest">toniques</span> ou <span className="font-semibold text-forest">tantriques</span>. Chaque séance est personnalisée : pression, rythme et durée s&apos;adaptent à vos tensions et à votre énergie du moment.
+            </p>
+            <p className="text-softgray leading-relaxed">
+              Besoin d&apos;un massage bien-être après le travail, d&apos;une récupération musculaire ou d&apos;une expérience plus sensorielle ? Je construis une séance sur-mesure pour vous.
+            </p>
+            <p className="text-softgray leading-relaxed">
+              Réservez votre massage à Quimper ou contactez-moi pour choisir la formule (relaxant, tonique ou tantrique) et la durée idéale. Je reste disponible pour vous guider avant de bloquer un créneau.
+            </p>
+          </div>
+          <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-5 shadow-sm">
+            <h3 className="text-forest font-semibold mb-3">Ce que vous recevez</h3>
+            <ul className="space-y-2 text-softgray text-sm">
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-500 mt-0.5">•</span>
+                Pression et rythme ajustés en direct selon vos sensations.
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-500 mt-0.5">•</span>
+                Durée modulable pour rester aligné avec vos objectifs (détente, récupération, énergie).
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-500 mt-0.5">•</span>
+                Conseils personnalisés avant de réserver, pour choisir la bonne formule.
+              </li>
+            </ul>
+          </div>
+        </div>
       </section>
 
       
