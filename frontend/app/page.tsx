@@ -8,7 +8,6 @@ import { useState, useEffect } from "react";
 import { getServices } from "@/lib/api";
 import { Service } from "@/lib/types";
 import useInterval from "./components/useInterval";
-import useInterval from "./components/useInterval";
 
 export default function HomePage() {
   const [services, setServices] = useState<Service[]>([]);
