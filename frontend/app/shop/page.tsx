@@ -4,9 +4,7 @@ import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-import axios from 'axios';
+import { submitContactForm } from '@/lib/api';
 
 interface Product {
   id: number;
@@ -84,12 +82,10 @@ export default function Shop() {
     const messageBody = `Nouvelle commande de ${userName} (Email: ${userEmail}):\n\nProduits :\n${orderDetails}\n\nTotal : ${total} €\n\nMerci de contacter ${userName} pour proposer un mode de paiement et de livraison.`;
 
     try {
-      await axios.post('http://127.0.0.1:8000/api/contact/', new URLSearchParams({
+      await submitContactForm({
         name: userName,
         email: userEmail,
         message: messageBody,
-      }).toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
       setMessage('Votre panier a été envoyé à Sammy. Il vous recontactera rapidement pour proposer un moyen de paiement et un mode de livraison.');
       setCart([]);
@@ -109,7 +105,6 @@ export default function Shop() {
         <meta name="description" content="Achetez des huiles de massage de qualité pour soulager vos muscles." />
       </Head>
 
-      <Navbar />
       <main className="flex-grow">
         {isShopActive ? (
           <motion.section
@@ -127,7 +122,7 @@ export default function Shop() {
                   whileHover={product.stock > 0 && product.is_active ? { scale: 1.05 } : {}}
                 >
                   <img
-                    src={product.image ? product.image : '/images/placeholder.jpg'}
+                    src={product.image ? product.image : '/images/about1.jpg'}
                     alt={product.name}
                     className={`w-full h-32 sm:h-48 object-cover rounded-t-lg ${product.stock === 0 || !product.is_active ? 'blur-sm' : ''}`}
                   />
@@ -208,7 +203,6 @@ export default function Shop() {
           </section>
         )}
       </main>
-      <Footer />
     </div>
   );
 }

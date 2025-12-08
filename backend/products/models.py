@@ -6,13 +6,13 @@ class Service(models.Model):
     description = models.TextField()
     durations_prices = models.JSONField(default=dict)  # {"60": 60, "90": 80}
     image = models.ImageField(upload_to='services/', null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.title
 
 
 class Availability(models.Model):
-    service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="availabilities")
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
     is_booked = models.BooleanField(default=False)
@@ -36,6 +36,7 @@ class Booking(models.Model):
 
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="bookings")
     availability = models.ForeignKey(Availability, on_delete=models.CASCADE, related_name="bookings")
+    duration_minutes = models.PositiveIntegerField(default=60)
 
     client_name = models.CharField(max_length=255)
     client_email = models.EmailField()

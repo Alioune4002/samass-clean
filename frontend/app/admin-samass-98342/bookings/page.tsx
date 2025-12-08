@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { adminGetBookings } from "@/lib/adminApi";
+import { Booking } from "@/lib/types";
 import Link from "next/link";
 
 export default function AdminBookingsPage() {
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [loading, setLoading] = useState<boolean>(true);
 

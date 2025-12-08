@@ -30,21 +30,21 @@ export default function CardService({
      
       {uniquePrice ? (
         <div className="mb-4 text-sm font-medium text-ink">
-          {formulas[0].duration} : {formulas[0].price}€
+          {formulas[0].duration} : {formulas[0].price.toFixed(2)}€
         </div>
       ) : (
         <Accordion title="Voir les formules">
           {formulas.map((f, index) => (
             <div key={index} className="flex justify-between">
               <span>{f.duration}</span>
-              <span className="font-medium">{f.price}€</span>
+              <span className="font-medium">{f.price.toFixed(2)}€</span>
             </div>
           ))}
         </Accordion>
       )}
         <div className="mt-6">
       
-          <ReservationButton />
+          <ReservationButton serviceId={serviceId} />
         </div>
     </div>
   );

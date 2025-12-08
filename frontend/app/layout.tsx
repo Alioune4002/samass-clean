@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr">
       <body className={`${inter.variable} bg-white text-ink`}>
         <Header />
-        <main className="pt-0">{children}</main>
+        <main className="pt-16">{children}</main>
         <Footer />
       </body>
     </html>

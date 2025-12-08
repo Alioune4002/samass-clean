@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Navbar from "../components/Header";
-import Footer from "../components/Footer";
 import { submitContactForm } from "../../lib/api";
 import { FaPhoneAlt, FaWhatsapp, FaFacebookF } from "react-icons/fa";
 
@@ -36,10 +34,8 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-mint text-ink">
-      <Navbar />
-
       <main className="flex-grow">
-        <section className="max-w-3xl mx-auto px-6 py-16">
+        <section className="max-w-3xl mx-auto px-6 py-16 pt-28">
 
           <h1 className="text-3xl md:text-4xl font-bold text-forest text-center mb-10">
             Contactez-moi
@@ -158,8 +154,6 @@ export default function ContactPage() {
           </form>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 }

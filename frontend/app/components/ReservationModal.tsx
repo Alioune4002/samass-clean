@@ -2,21 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createBooking, getAvailabilities, getServices } from "../../lib/api";
-
-type Service = {
-  id: number;
-  title: string;
-  description: string;
-  durations_prices?: Record<string, number>;
-};
-
-type Availability = {
-  id: number;
-  start_datetime: string;
-  end_datetime: string;
-  is_booked: boolean;
-  service: number;
-};
+import { Availability, Service } from "@/lib/types";
 
 type Props = {
   isOpen: boolean;
@@ -29,6 +15,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
 
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
@@ -61,13 +48,14 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
         const data = await getServices();
         setServices(data);
 
-        
         if (initialServiceId) {
           const found = data.find(
             (s: Service) => s.id === initialServiceId
           );
           if (found) {
             setSelectedService(found);
+            const firstDuration = Object.keys(found.durations_prices || {})[0];
+            setSelectedDuration(firstDuration ? Number(firstDuration) : null);
             setStep(2); 
           }
         }
@@ -75,14 +63,15 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
         console.error(e);
       }
     }
-    load();
     resetState();
+    load();
   }, [isOpen, initialServiceId]);
 
 
   function resetState() {
     setStep(1);
     setSelectedService(null);
+    setSelectedDuration(null);
     setSelectedDate("");
     setAvailabilities([]);
     setSelectedAvailability(null);
@@ -106,14 +95,21 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
   });
 
   async function handleSelectDate(date: string) {
-    if (!selectedService) return;
+    if (!selectedService || !selectedDuration) return;
     setSelectedDate(date);
     setSelectedAvailability(null);
     setApiError(null);
 
     try {
-      const data = await getAvailabilities(selectedService.id, date);
-      setAvailabilities(data);
+      const data = await getAvailabilities(date);
+      const filtered = data.filter((a) => {
+        const slotMinutes =
+          (new Date(a.end_datetime).getTime() -
+            new Date(a.start_datetime).getTime()) /
+          60000;
+        return !a.is_booked && selectedDuration <= slotMinutes;
+      });
+      setAvailabilities(filtered);
     } catch (e) {
       console.error(e);
       setApiError("Impossible de charger les créneaux.");
@@ -121,23 +117,23 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
   }
 
   async function handleSubmit() {
-    if (!selectedService || !selectedAvailability) return;
+    if (!selectedService || !selectedAvailability || !selectedDuration) return;
     setLoading(true);
     setApiError(null);
 
-    const res = await createBooking({
-      client_name: clientName,
-      client_email: clientEmail,
-      client_phone: clientPhone,
-      service: selectedService.id,
-      availability: selectedAvailability.id,
-    });
-
-    if (res.error) {
-      setApiError(res.error || "Erreur lors de la réservation.");
-      setLoading(false);
-    } else {
+    try {
+      await createBooking({
+        client_name: clientName,
+        client_email: clientEmail,
+        client_phone: clientPhone,
+        serviceId: selectedService.id,
+        availabilityId: selectedAvailability.id,
+        durationMinutes: selectedDuration,
+      });
       setStep(5);
+    } catch (err: any) {
+      setApiError(err?.message || "Erreur lors de la réservation.");
+    } finally {
       setLoading(false);
     }
   }
@@ -189,13 +185,17 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
 
         
         <div className="space-y-4">
-          {step === 1 && (
-            <StepService
-              services={services}
-              selectedService={selectedService}
-              onSelect={(s) => setSelectedService(s)}
-            />
-          )}
+      {step === 1 && (
+        <StepService
+          services={services}
+          selectedService={selectedService}
+          selectedDuration={selectedDuration}
+          onSelect={(s, duration) => {
+            setSelectedService(s);
+            setSelectedDuration(duration);
+          }}
+        />
+      )}
 
           {step === 2 && (
             <StepDate
@@ -218,6 +218,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
             <StepClient
               service={selectedService}
               availability={selectedAvailability}
+              duration={selectedDuration}
               clientName={clientName}
               clientEmail={clientEmail}
               clientPhone={clientPhone}
@@ -264,7 +265,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
             <button
               className="ml-auto rounded-full bg-gray-900 text-white px-5 py-2 text-sm font-medium disabled:bg-gray-300 disabled:text-gray-500"
               disabled={
-                (step === 1 && !selectedService) ||
+                (step === 1 && (!selectedService || !selectedDuration)) ||
                 (step === 2 && !selectedDate) ||
                 (step === 3 && !selectedAvailability) ||
                 (step === 4 &&
@@ -296,12 +297,14 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
 type StepServiceProps = {
   services: Service[];
   selectedService: Service | null;
-  onSelect: (s: Service) => void;
+  selectedDuration: number | null;
+  onSelect: (s: Service, duration: number | null) => void;
 };
 
 function StepService({
   services,
   selectedService,
+  selectedDuration,
   onSelect,
 }: StepServiceProps) {
   if (!services.length) {
@@ -316,18 +319,16 @@ function StepService({
     <div className="space-y-3">
       {services.map((s) => {
         const selected = selectedService?.id === s.id;
-
-        const pricesText = s.durations_prices
-          ? Object.entries(s.durations_prices)
-              .map(([minutes, price]) => `${minutes} min – ${price} €`)
-              .join(" • ")
-          : null;
+        const durations = s.durations_prices ? Object.entries(s.durations_prices) : [];
 
         return (
           <button
             key={s.id}
             type="button"
-            onClick={() => onSelect(s)}
+            onClick={() => {
+              const first = durations[0]?.[0];
+              onSelect(s, first ? Number(first) : null);
+            }}
             className={`w-full text-left border rounded-2xl px-4 py-3 transition ${
               selected
                 ? "border-emerald-500 bg-emerald-50"
@@ -337,10 +338,27 @@ function StepService({
             <div className="flex items-center justify-between mb-1">
               <span className="font-medium text-gray-900">{s.title}</span>
             </div>
-            {pricesText && (
-              <p className="text-[11px] text-emerald-700 mb-1">
-                {pricesText}
-              </p>
+            {durations.length > 0 && (
+              <div className="mt-2 space-y-2 text-[11px] text-emerald-700">
+                {durations.map(([minutes, price]) => (
+                  <label
+                    key={minutes}
+                    className="flex items-center gap-2 text-gray-700"
+                  >
+                    <input
+                      type="radio"
+                      name={`duration-${s.id}`}
+                      checked={
+                        selected && selectedDuration === Number(minutes)
+                      }
+                      onChange={() => onSelect(s, Number(minutes))}
+                    />
+                    <span>
+                      {minutes} min – {Number(price).toFixed(2)} €
+                    </span>
+                  </label>
+                ))}
+              </div>
             )}
             <p className="text-xs text-gray-500 line-clamp-2">
               {s.description}
@@ -451,6 +469,7 @@ function StepSlot({
 type StepClientProps = {
   service: Service | null;
   availability: Availability | null;
+  duration: number | null;
   clientName: string;
   clientEmail: string;
   clientPhone: string;
@@ -462,6 +481,7 @@ type StepClientProps = {
 function StepClient({
   service,
   availability,
+  duration,
   clientName,
   clientEmail,
   clientPhone,
@@ -488,6 +508,9 @@ function StepClient({
               { hour: "2-digit", minute: "2-digit" }
             )}
           </p>
+          {duration && (
+            <p className="mt-1">Durée choisie : {duration} min</p>
+          )}
         </div>
       )}
 

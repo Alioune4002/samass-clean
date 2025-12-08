@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { adminGetMessages } from "@/lib/adminApi";
+import { adminGetMessages, ContactMessage } from "@/lib/adminApi";
 
 export default function AdminMessagesPage() {
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

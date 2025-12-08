@@ -9,19 +9,10 @@ class ServiceSerializer(serializers.ModelSerializer):
 
 
 class AvailabilitySerializer(serializers.ModelSerializer):
-    service = ServiceSerializer(read_only=True)
-    service_id = serializers.PrimaryKeyRelatedField(
-        queryset=Service.objects.all(),
-        source="service",
-        write_only=True
-    )
-
     class Meta:
         model = Availability
         fields = [
             "id",
-            "service",
-            "service_id",
             "start_datetime",
             "end_datetime",
             "is_booked",
@@ -37,6 +28,13 @@ class BookingSerializer(serializers.ModelSerializer):
         source="availability",
         write_only=True
     )
+    service = ServiceSerializer(read_only=True)
+    service_id = serializers.PrimaryKeyRelatedField(
+        queryset=Service.objects.all(),
+        source="service",
+        write_only=True
+    )
+    duration_minutes = serializers.IntegerField(min_value=1)
 
     class Meta:
         model = Booking
@@ -45,9 +43,11 @@ class BookingSerializer(serializers.ModelSerializer):
             "client_name",
             "client_email",
             "client_phone",
-            "service",
             "availability",
+            "service",
+            "service_id",
             "availability_id",
+            "duration_minutes",
             "status",
             "created_at",
             "updated_at",

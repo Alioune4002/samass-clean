@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { FaWhatsapp, FaFacebookF, FaBars, FaTimes } from 'react-icons/fa';
 import { useState, useEffect } from 'react';

@@ -1,204 +1,172 @@
-'use client';
+import Image from "next/image";
+import Link from "next/link";
 
-import Head from 'next/head';
-import { useState, useEffect } from 'react';
-import Navbar from '../components/Header';
-import Footer from '../components/Footer';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
+export const metadata = {
+  title: "À propos – SAMASS",
+  description:
+    "Découvrez l’approche de SAMASS : massages sur-mesure, présence et écoute pour vous aider à relâcher corps et esprit.",
+};
 
-
-type Value = Date | [Date, Date] | null;
-
-interface Availability {
-  id: number;
-  date: string;
-  start_time: string;
-  end_time: string;
-  is_booked: boolean;
-}
-
-export default function Admin() {
-  const [adminPassword, setAdminPassword] = useState('');
-  const [isAdminMode, setIsAdminMode] = useState(false);
-  const [availabilities, setAvailabilities] = useState<Availability[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string>('');
-  const [selectedDuration, setSelectedDuration] = useState<string>('60');
-
-
-  const [authToken, setAuthToken] = useState<string | null>("b15b4087afe47e52c60ab9d2110473b09b78e5af");
-
-  useEffect(() => {
-    
-    const token = localStorage.getItem('authToken'); 
-    if (token) setAuthToken(token);
-    if (isAdminMode && token) fetchAvailabilities();
-  }, [isAdminMode]);
-
-  const handleAdminLogin = (password: string) => {
-    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD || password === 'admin123') {
-      setIsAdminMode(true);
-
-      const dummyToken = 'abc123...'; 
-      setAuthToken(dummyToken);
-      localStorage.setItem('authToken', dummyToken);
-      fetchAvailabilities();
-    } else {
-      alert('Mot de passe incorrect.');
-    }
-  };
-
-  const fetchAvailabilities = async () => {
-    if (!authToken) {
-      console.error('Aucun token d\'authentification trouvé.');
-      return;
-    }
-    try {
-      const response = await fetch('https://samassbysam.com/availabilities/', {
-        headers: {
-          'Authorization': `Token ${authToken}`, 
-          'Content-Type': 'application/json',
-        },
-      });
-      const data = await response.json();
-      const availabilitiesData = Array.isArray(data) ? data : data.results || [];
-      setAvailabilities(availabilitiesData);
-    } catch (error) {
-      console.error('Erreur chargement disponibilités:', error);
-      setAvailabilities([]);
-    }
-  };
-
-  const handleAvailabilityAction = async () => {
-    if (!authToken || !selectedDate || !selectedTime || !selectedDuration) {
-      alert('Authentification ou données manquantes.');
-      return;
-    }
-    const dateStr = selectedDate.toISOString().split('T')[0];
-    const endTime = new Date(new Date(`${dateStr}T${selectedTime}`).getTime() + parseInt(selectedDuration) * 60000)
-      .toISOString()
-      .split('T')[1]
-      .slice(0, 5);
-    try {
-      const response = await fetch('http://127.0.0.1:8000/api/google-calendar/add-availability/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${authToken}`, 
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          date: dateStr,
-          start_time: selectedTime,
-          duration: selectedDuration,
-        }).toString(),
-      });
-      if (response.ok) {
-        fetchAvailabilities();
-        alert('Disponibilité ajoutée avec succès.');
-      } else {
-        const errorData = await response.json();
-        alert(`Erreur: ${errorData.detail || 'Unauthorized'}`);
-      }
-    } catch (error) {
-      console.error('Erreur ajout disponibilité:', error);
-      alert('Erreur lors de l\'ajout.');
-    }
-  };
-
-  const handleDateSelect = (value: Value) => {
-    const date = Array.isArray(value) ? value[0] : value;
-    if (date instanceof Date) setSelectedDate(date);
-  };
-
-  const handleTimeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedTime(e.target.value);
-  };
-
-  if (!isAdminMode) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-100 to-emerald-50 text-gray-900 font-poppins">
-        <Head><title>SAMASS - Admin</title></Head>
-        <Navbar />
-        <main className="flex-grow">
-          <section className="container mx-auto py-16 px-4">
-            <div className="max-w-md mx-auto text-center">
-              <h1 className="text-4xl font-bold text-emerald-900 mb-6">Page Admin</h1>
-              <input
-                type="password"
-                placeholder="Mot de passe admin"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                className="mb-4 p-2 rounded-lg border border-gray-300 w-full"
-              />
-              <button
-                className="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700"
-                onClick={() => handleAdminLogin(adminPassword)}
-              >
-                Se connecter
-              </button>
-            </div>
-          </section>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
+export default function AboutPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-100 to-emerald-50 text-gray-900 font-poppins">
-      <Head><title>SAMASS - Admin</title></Head>
-      <Navbar />
-      <main className="flex-grow">
-        <section className="container mx-auto py-16 px-4">
-          <h1 className="text-4xl font-bold text-emerald-900 mb-6 text-center">Gestion des Disponibilités</h1>
-          <Calendar
-            onChange={handleDateSelect as any}
-            value={selectedDate}
-            className="mb-4 mx-auto"
-            tileClassName={({ date }) => {
-              const dateStr = date.toISOString().split('T')[0];
-              const hasAvailability = Array.isArray(availabilities) && availabilities.some((a) => a.date === dateStr);
-              const hasBooked = Array.isArray(availabilities) && availabilities.some((a) => a.date === dateStr && a.is_booked);
-              return hasAvailability ? (hasBooked ? 'bg-red-200' : 'bg-green-200') : '';
-            }}
+    <div className="bg-gradient-to-b from-emerald-50 to-white text-ink">
+      <section className="max-w-6xl mx-auto px-6 pt-28 pb-16 grid gap-10 lg:grid-cols-2 items-center">
+        <div className="space-y-4">
+          <p className="text-sm uppercase tracking-[0.2em] text-emerald-700">
+            À propos
+          </p>
+          <h1 className="text-3xl md:text-5xl font-bold text-forest leading-tight">
+            Une approche douce, attentive et profondément humaine.
+          </h1>
+          <p className="text-softgray text-lg leading-relaxed">
+            Je m’appelle Sam. J’accompagne les personnes qui souhaitent
+            reprendre contact avec leur corps, apaiser leurs tensions et se
+            reconnecter à leurs sensations. Chaque massage est adapté à votre
+            énergie du moment : pas de protocole rigide, seulement de la
+            présence, de l’écoute et des gestes sur-mesure.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/reservation"
+              className="inline-flex items-center justify-center rounded-full bg-forest text-white px-5 py-3 font-semibold hover:bg-leaf transition"
+            >
+              Prendre rendez-vous
+            </Link>
+            <Link
+              href="/services"
+              className="inline-flex items-center justify-center rounded-full border border-forest text-forest px-5 py-3 font-semibold hover:bg-pastel transition"
+            >
+              Voir les massages
+            </Link>
+          </div>
+        </div>
+
+        <div className="relative aspect-[4/5] w-full">
+          <Image
+            src="/images/about1.jpg"
+            alt="Espace de massage Samass"
+            fill
+            className="rounded-3xl object-cover shadow-xl"
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            priority
           />
-          {selectedDate && (
-            <div className="max-w-md mx-auto space-y-4">
-              <input
-                type="time"
-                value={selectedTime}
-                onChange={handleTimeSelect}
-                className="w-full p-2 border rounded"
-              />
-              <select
-                value={selectedDuration}
-                onChange={(e) => setSelectedDuration(e.target.value)}
-                className="w-full p-2 border rounded"
-              >
-                <option value="30">30 min</option>
-                <option value="60">60 min</option>
-                <option value="90">90 min</option>
-              </select>
-              <button
-                className="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700"
-                onClick={handleAvailabilityAction}
-                disabled={!selectedTime || !selectedDuration}
-              >
-                Ajouter Disponibilité
-              </button>
-              {Array.isArray(availabilities) && availabilities.map((a) => (
-                <div key={a.id} className="bg-white p-4 rounded-lg shadow-md">
-                  <p><strong>Date :</strong> {new Date(a.date).toLocaleDateString()}</p>
-                  <p><strong>Heure :</strong> {a.start_time} - {a.end_time}</p>
-                  <p><strong>Réservé :</strong> {a.is_booked ? 'Oui' : 'Non'}</p>
-                </div>
-              ))}
+          <div className="absolute -bottom-6 -left-6 bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow-lg border border-emerald-50 text-sm text-forest">
+            Massages bien-être à Quimper · Présence & écoute
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white border-y border-emerald-50">
+        <div className="max-w-6xl mx-auto px-6 py-12 grid md:grid-cols-3 gap-6">
+          {[
+            {
+              title: "Présence",
+              text: "Un cadre sécurisant où vous pouvez réellement vous déposer, respirer et vous détendre.",
+              icon: "🤲",
+            },
+            {
+              title: "Personnalisation",
+              text: "Chaque séance est adaptée : rythme, pression, durée et zones ciblées selon vos besoins.",
+              icon: "✨",
+            },
+            {
+              title: "Régularité",
+              text: "Un accompagnement dans le temps pour libérer les tensions et retrouver de l’énergie.",
+              icon: "🌿",
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-6 shadow-sm"
+            >
+              <div className="text-3xl mb-3">{item.icon}</div>
+              <h3 className="text-lg font-semibold text-forest mb-2">
+                {item.title}
+              </h3>
+              <p className="text-softgray text-sm leading-relaxed">
+                {item.text}
+              </p>
             </div>
-          )}
-        </section>
-      </main>
-      <Footer />
+          ))}
+        </div>
+      </section>
+
+      <section className="max-w-6xl mx-auto px-6 py-16 grid gap-10 lg:grid-cols-2 items-center">
+        <div className="relative aspect-[4/5] w-full order-2 lg:order-1">
+          <Image
+            src="/images/about2.jpg"
+            alt="Massage Samass"
+            fill
+            className="rounded-3xl object-cover shadow-xl"
+            sizes="(max-width: 1024px) 100vw, 50vw"
+          />
+        </div>
+
+        <div className="space-y-4 order-1 lg:order-2">
+          <h2 className="text-2xl md:text-3xl font-semibold text-forest">
+            Mon intention pour vous
+          </h2>
+          <p className="text-softgray leading-relaxed">
+            Vous offrir un moment où vous pouvez relâcher la pression,
+            respirer plus librement et retrouver du confort dans votre corps.
+            J’utilise des huiles naturelles, une gestuelle douce et des
+            techniques inspirées du massage relaxant, tonique et tantrique.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="rounded-xl bg-white border border-emerald-100 p-4 text-sm">
+              <p className="font-semibold text-forest">Massages relaxants</p>
+              <p className="text-softgray mt-1">
+                Pour apaiser le système nerveux et libérer les tensions
+                profondes.
+              </p>
+            </div>
+            <div className="rounded-xl bg-white border border-emerald-100 p-4 text-sm">
+              <p className="font-semibold text-forest">Massages toniques</p>
+              <p className="text-softgray mt-1">
+                Pour redynamiser le corps, stimuler la circulation et détendre
+                les muscles fatigués.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-forest text-white">
+        <div className="max-w-6xl mx-auto px-6 py-14 grid gap-8 md:grid-cols-2 items-center">
+          <div className="space-y-3">
+            <h3 className="text-2xl font-semibold">Envie d&apos;échanger ?</h3>
+            <p className="text-white/80 leading-relaxed">
+              Parlez-moi de vos besoins, de vos douleurs ou simplement de ce que
+              vous aimeriez ressentir après la séance. Nous trouverons le
+              massage qui vous convient.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/reservation"
+                className="inline-flex items-center justify-center rounded-full bg-white text-forest px-5 py-2.5 font-semibold hover:bg-emerald-50 transition"
+              >
+                Réserver un créneau
+              </Link>
+              <Link
+                href="/contact"
+                className="inline-flex items-center justify-center rounded-full border border-white text-white px-5 py-2.5 font-semibold hover:bg-white/10 transition"
+              >
+                Me contacter
+              </Link>
+            </div>
+          </div>
+
+          <div className="relative aspect-[16/10] w-full">
+            <Image
+              src="/images/about3.png"
+              alt="Ambiance Samass"
+              fill
+              className="rounded-2xl object-cover shadow-lg"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

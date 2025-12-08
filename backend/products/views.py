@@ -44,12 +44,9 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         date_param = self.request.query_params.get("date")
-        service_param = self.request.query_params.get("service")
 
         if date_param:
             qs = qs.filter(start_datetime__date=date_param, is_booked=False)
-        if service_param:
-            qs = qs.filter(service_id=service_param)
 
         return qs
 
@@ -86,25 +83,33 @@ class BookingViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         try:
             data = request.data
-            service_id = data.get("service")
-            availability_id = data.get("availability")
+            service_id = data.get("service") or data.get("service_id")
+            availability_id = data.get("availability") or data.get("availability_id")
+            duration_minutes = data.get("duration_minutes")
             name = data.get("client_name")
             email = data.get("client_email")
             phone = data.get("client_phone", "")
 
-            if not all([service_id, availability_id, name, email]):
+            if not all([service_id, availability_id, name, email, duration_minutes]):
                 return Response({"error": "Champs manquants."}, status=400)
 
-            with transaction.atomic():
-                availability = Availability.objects.select_for_update().get(
-                    pk=availability_id, is_booked=False
-                )
+            try:
+                duration_value = int(duration_minutes)
+            except (TypeError, ValueError):
+                return Response({"error": "Durée invalide."}, status=400)
 
-                service = availability.service
-                if int(service_id) != service.id:
-                    return Response(
-                        {"error": "Disponibilité incorrecte."}, status=400
-                    )
+            with transaction.atomic():
+                availability = Availability.objects.select_for_update().get(pk=availability_id, is_booked=False)
+                service = Service.objects.get(pk=service_id)
+
+                # Vérifie que la durée demandée existe pour le service
+                allowed_durations = [int(d) for d in service.durations_prices.keys()]
+                if duration_value not in allowed_durations:
+                    return Response({"error": "Durée non proposée pour ce service."}, status=400)
+
+                slot_minutes = int((availability.end_datetime - availability.start_datetime).total_seconds() / 60)
+                if duration_value > slot_minutes:
+                    return Response({"error": "Durée supérieure au créneau disponible."}, status=400)
 
                 booking = Booking.objects.create(
                     service=service,
@@ -112,6 +117,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                     client_name=name,
                     client_email=email,
                     client_phone=phone,
+                    duration_minutes=duration_value,
                     status="pending",
                 )
 
@@ -201,8 +207,12 @@ class BookingViewSet(viewsets.ModelViewSet):
 # ─────────────────────────────────────────────
 # CONTACT FORM
 # ─────────────────────────────────────────────
-@api_view(["POST"])
+@api_view(["GET", "POST"])
 def contact_form_submit(request):
+    if request.method == "GET":
+        messages = ContactMessage.objects.all().order_by("-created_at")
+        return Response(ContactMessageSerializer(messages, many=True).data)
+
     try:
         name = request.data.get("name")
         email = request.data.get("email")
@@ -247,4 +257,4 @@ def contact_form_submit(request):
 
     except Exception as e:
         logger.error(f"Erreur contact : {str(e)}")
-        return
+        return Response({"error": "Erreur serveur."}, status=500)

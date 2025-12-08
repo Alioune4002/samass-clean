@@ -6,6 +6,7 @@ import {
   adminConfirmBooking,
   adminCancelBooking,
 } from "@/lib/adminApi";
+import { Booking } from "@/lib/types";
 import { useParams, useRouter } from "next/navigation";
 
 export default function BookingDetailPage() {
@@ -13,7 +14,7 @@ export default function BookingDetailPage() {
   const params = useParams();
   const id = Number(params?.id);
 
-  const [booking, setBooking] = useState<any>(null);
+  const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

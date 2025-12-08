@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import {
   adminGetBookings,
   adminGetMessages,
-  adminGetAvailabilities,
 } from "@/lib/adminApi";
+import { Booking } from "@/lib/types";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -13,7 +13,7 @@ export default function AdminDashboard() {
     pending: 0,
     confirmed: 0,
     messages: 0,
-    upcoming: [] as any[],
+    upcoming: [] as Booking[],
   });
 
   const [loading, setLoading] = useState(true);

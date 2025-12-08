@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const session = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer sk_test_your_secret_key`, // Remplace par ta clé secrète Stripe
+      'Authorization': `secret_key`, 
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: params.toString(),

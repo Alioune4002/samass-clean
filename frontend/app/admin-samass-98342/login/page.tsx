@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 export default function AdminLogin() {
   const router = useRouter();
   const [password, setPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState("");
 
   const ADMIN_PASSWORD = "badou2004"; // mot de passe admin
@@ -20,6 +21,7 @@ export default function AdminLogin() {
 
     // Flag de connexion
     localStorage.setItem("samass_admin_logged", "true");
+    document.cookie = "admin_token=ok; path=/; max-age=604800";
 
     // Redirection
     router.push("/admin-samass-98342/services");
@@ -31,12 +33,19 @@ export default function AdminLogin() {
 
       <form onSubmit={handleLogin} className="flex flex-col gap-4">
         <input
-          type="password"
+          type={showPwd ? "text" : "password"}
           placeholder="Mot de passe admin"
           className="border p-2 rounded"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+        <button
+          type="button"
+          className="text-sm text-gray-500 self-end"
+          onClick={() => setShowPwd(!showPwd)}
+        >
+          {showPwd ? "Masquer" : "Afficher"}
+        </button>
 
         {error && <p className="text-red-500">{error}</p>}
 

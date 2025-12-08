@@ -1,66 +1,74 @@
-const BASE_URL = "https://samass-massage.onrender.com";
+import { Availability, Booking, Service } from "./types";
 
-export async function createAvailability(data: {
-  service: number;
-  start_datetime: string;
-  end_datetime: string;
-}) {
-  const res = await fetch(`${BASE_URL}/api/availabilities/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+export const API_BASE =
+  (process.env.NEXT_PUBLIC_API_URL ||
+    "https://samass-massage.onrender.com/api").replace(/\/$/, "");
+
+async function apiFetch<T>(path: string, options: RequestInit = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    cache: options.cache ?? "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
   });
 
   if (!res.ok) {
-    throw new Error("Erreur lors de la création de la disponibilité");
+    const message = await res.text();
+    throw new Error(message || `Erreur API ${res.status}`);
   }
 
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
+export async function getServices(): Promise<Service[]> {
+  return apiFetch<Service[]>("/services/");
+}
 
-export async function getServices() {
-  const res = await fetch(`${BASE_URL}/api/services/`, {
-    cache: "no-store",
+export async function createAvailability(data: {
+  serviceId: number;
+  start_datetime: string;
+  end_datetime: string;
+}) {
+  return apiFetch<Availability>("/availabilities/", {
+    method: "POST",
+    body: JSON.stringify({
+      service_id: data.serviceId,
+      start_datetime: data.start_datetime,
+      end_datetime: data.end_datetime,
+    }),
   });
-  if (!res.ok) throw new Error("Erreur chargement services");
-  return res.json();
 }
 
+export async function getAvailabilities(date?: string) {
+  const params = new URLSearchParams();
+  if (date) params.append("date", date);
 
-export async function getAvailabilities(
-  serviceId: number,
-  date?: string
-) {
-  const url = new URL(`${BASE_URL}/api/availabilities/`);
-
-  url.searchParams.append("service", String(serviceId));
-  if (date) url.searchParams.append("date", date);
-
-  const res = await fetch(url.toString(), {
-    cache: "no-store",
-  });
-
-  if (!res.ok) throw new Error("Erreur chargement disponibilités");
-  return res.json();
+  return apiFetch<Availability[]>(
+    `/availabilities/${params.toString() ? `?${params.toString()}` : ""}`
+  );
 }
-
-
 
 export async function createBooking(data: {
   client_name: string;
   client_email: string;
   client_phone?: string;
-  availability: number;
-  service: number;
-}) {
-  const res = await fetch(`${BASE_URL}/api/bookings/`, {
+  availabilityId: number;
+  serviceId: number;
+  durationMinutes: number;
+}): Promise<Booking> {
+  return apiFetch<Booking>("/bookings/", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      client_name: data.client_name,
+      client_email: data.client_email,
+      client_phone: data.client_phone,
+      service_id: data.serviceId,
+      availability_id: data.availabilityId,
+      duration_minutes: data.durationMinutes,
+    }),
   });
-
-  return res.json();
 }
 
 export async function submitContactForm(data: {
@@ -69,22 +77,14 @@ export async function submitContactForm(data: {
   phone?: string;
   message: string;
 }) {
-  const res = await fetch(`${BASE_URL}/api/contact/`, {
+  return apiFetch<{ message: string }>("/contact/", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-
-  return res.json();
 }
 
 export async function deleteAvailability(id: number) {
-  const res = await fetch(
-    `${BASE_URL}/api/availabilities/${id}/`,
-    {
-      method: "DELETE",
-    }
-  );
-
-  return res.json();
+  return apiFetch<{ message: string }>(`/availabilities/${id}/`, {
+    method: "DELETE",
+  });
 }

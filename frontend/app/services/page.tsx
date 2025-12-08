@@ -2,13 +2,8 @@
 
 import { useEffect, useState } from "react";
 import CardService from "../components/CardService";
-
-type Service = {
-  id: number;
-  title: string;
-  description: string;
-  durations_prices: Record<string, number>;
-};
+import { getServices } from "@/lib/api";
+import { Service } from "@/lib/types";
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
@@ -17,8 +12,7 @@ export default function ServicesPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("https://samass-massage.onrender.com/services/");
-        const data = await res.json();
+        const data = await getServices();
         setServices(data);
       } catch (e) {
         console.error("Erreur chargement services :", e);
@@ -51,7 +45,7 @@ export default function ServicesPage() {
               formulas={Object.entries(s.durations_prices).map(
                 ([duration, price]) => ({
                   duration: duration + " min",
-                  price: price / 100,
+                  price,
                 })
               )}
               serviceId={s.id}

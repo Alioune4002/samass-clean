@@ -22,8 +22,8 @@ class ServiceAdmin(admin.ModelAdmin):
 
 @admin.register(Availability)
 class AvailabilityAdmin(admin.ModelAdmin):
-    list_display = ("service", "start_datetime", "end_datetime", "is_booked")
-    list_filter = ("service", "is_booked")
+    list_display = ("start_datetime", "end_datetime", "is_booked")
+    list_filter = ("is_booked",)
 
 
 

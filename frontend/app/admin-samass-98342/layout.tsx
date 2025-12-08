@@ -10,8 +10,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const logged = localStorage.getItem("samass_admin_logged");
+    const hasCookie =
+      typeof document !== "undefined" &&
+      document.cookie.includes("admin_token=");
 
-    if (logged !== "true") {
+    if (logged !== "true" && !hasCookie) {
       router.push("/admin-samass-98342/login");
     }
   }, [router]);

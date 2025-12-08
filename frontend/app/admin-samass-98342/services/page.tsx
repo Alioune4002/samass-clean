@@ -5,27 +5,20 @@ import {
   adminGetServices,
   adminCreateService,
   adminDeleteService,
+  adminUpdateService,
 } from "@/lib/adminApi";
-
-/* ------------------------------
-   TYPE EXACT DU BACKEND DJANGO
------------------------------- */
-type Service = {
-  id: number;
-  title: string;
-  description: string;
-  durations_prices: Record<string, number>;
-};
+import { Service } from "@/lib/types";
 
 export default function AdminServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   /* ------------------------------
      FORMULAIRE AVEC MULTI TARIFS
   ------------------------------ */
   const [formData, setFormData] = useState({
-    name: "",
+    title: "",
     description: "",
   });
 
@@ -70,7 +63,7 @@ export default function AdminServicesPage() {
           AJOUT SERVICE
   ------------------------------ */
   const submitService = async () => {
-    if (!formData.name || tarifs.length === 0) {
+    if (!formData.title || tarifs.length === 0) {
       alert("Veuillez remplir le nom et ajouter au moins un tarif.");
       return;
     }
@@ -88,13 +81,13 @@ export default function AdminServicesPage() {
 
     try {
       await adminCreateService({
-        title: formData.name,
+        title: formData.title,
         description: formData.description,
         durations_prices,
       });
 
       // Reset du formulaire
-      setFormData({ name: "", description: "" });
+      setFormData({ title: "", description: "" });
       setTarifs([]);
 
       fetchServices();
@@ -102,6 +95,42 @@ export default function AdminServicesPage() {
       console.error("Erreur adminCreateService :", err);
       alert("Erreur lors de l'ajout du service.");
     }
+  };
+
+  const saveEdit = async (service: Service) => {
+    if (!formData.title || tarifs.length === 0) {
+      alert("Veuillez remplir le nom et ajouter au moins un tarif.");
+      return;
+    }
+    const durations_prices: Record<string, number> = {};
+    for (const tarif of tarifs) {
+      durations_prices[tarif.duration] = Number(tarif.price);
+    }
+    try {
+      await adminUpdateService(service.id, {
+        title: formData.title,
+        description: formData.description,
+        durations_prices,
+      });
+      setEditingId(null);
+      setTarifs([]);
+      setFormData({ title: "", description: "" });
+      fetchServices();
+    } catch (err) {
+      console.error("Erreur adminUpdateService :", err);
+      alert("Impossible de modifier le service.");
+    }
+  };
+
+  const startEdit = (service: Service) => {
+    setEditingId(service.id);
+    setFormData({ title: service.title, description: service.description });
+    setTarifs(
+      Object.entries(service.durations_prices || {}).map(([d, p]) => ({
+        duration: d,
+        price: String(p),
+      }))
+    );
   };
 
   /* ------------------------------
@@ -131,8 +160,8 @@ export default function AdminServicesPage() {
           type="text"
           placeholder="Nom du service"
           className="border bg-[#0D0D0D] text-white p-2 w-full mb-2 rounded"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
         />
 
         <textarea
@@ -157,7 +186,7 @@ export default function AdminServicesPage() {
 
             <input
               type="number"
-              placeholder="Prix (centimes)"
+              placeholder="Prix (€)"
               className="border bg-[#0D0D0D] text-white p-2 rounded w-1/2"
               value={tarif.price}
               onChange={(e) => updateTarif(index, "price", e.target.value)}
@@ -196,30 +225,138 @@ export default function AdminServicesPage() {
         <p>Aucun service disponible.</p>
       ) : (
         <ul className="space-y-4">
-          {services.map((service) => (
+          {services.map((service) => {
+            const isEditing = editingId === service.id;
+            return (
             <li
               key={service.id}
               className="border border-gray-700 p-4 rounded bg-[#1A1A1A] shadow flex justify-between"
             >
-              <div>
-                <h3 className="font-bold text-emerald-400">{service.title}</h3>
-                <p className="text-gray-300">{service.description}</p>
-
-                <div className="mt-2 text-sm text-gray-400">
-                  {Object.entries(service.durations_prices).map(([d, p]) => (
-                    <p key={d}>• {d} min — {(p / 100).toFixed(2)} €</p>
-                  ))}
+              <div className="flex-1 pr-4 space-y-2">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-bold text-emerald-400">
+                    {service.title}
+                  </h3>
+                  {!service.is_active && (
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-gray-700 text-gray-200">
+                      Suspendu
+                    </span>
+                  )}
                 </div>
+
+                {isEditing ? (
+                  <>
+                    <input
+                      type="text"
+                      className="border bg-[#0D0D0D] text-white p-2 rounded w-full"
+                      value={formData.title}
+                      onChange={(e) =>
+                        setFormData({ ...formData, title: e.target.value })
+                      }
+                    />
+                    <textarea
+                      className="border bg-[#0D0D0D] text-white p-2 rounded w-full"
+                      value={formData.description}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
+                      }
+                    />
+                    <div className="space-y-3">
+                      {tarifs.map((tarif, index) => (
+                        <div key={index} className="flex gap-2">
+                          <input
+                            type="number"
+                            className="border bg-[#0D0D0D] text-white p-2 rounded w-1/2"
+                            value={tarif.duration}
+                            onChange={(e) =>
+                              updateTarif(index, "duration", e.target.value)
+                            }
+                          />
+                          <input
+                            type="number"
+                            className="border bg-[#0D0D0D] text-white p-2 rounded w-1/2"
+                            value={tarif.price}
+                            onChange={(e) =>
+                              updateTarif(index, "price", e.target.value)
+                            }
+                          />
+                          <button
+                            className="text-red-500"
+                            onClick={() => removeTarif(index)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={addTarif}
+                        className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded"
+                      >
+                        + Ajouter une durée
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => saveEdit(service)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded"
+                      >
+                        Enregistrer
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingId(null);
+                          setTarifs([]);
+                          setFormData({ title: "", description: "" });
+                        }}
+                        className="bg-gray-700 text-white px-3 py-2 rounded"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-300">{service.description}</p>
+                    <div className="mt-2 text-sm text-gray-400">
+                      {Object.entries(service.durations_prices).map(([d, p]) => (
+                        <p key={d}>• {d} min — {Number(p).toFixed(2)} €</p>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
-              <button
-                onClick={() => removeService(service.id)}
-                className="text-red-500 hover:text-red-700"
-              >
-                Supprimer
-              </button>
+              <div className="flex flex-col gap-2 justify-start">
+                <button
+                  onClick={() =>
+                    adminUpdateService(service.id, {
+                      is_active: !service.is_active,
+                    }).then(fetchServices)
+                  }
+                  className="text-sm px-3 py-1 rounded bg-gray-700 hover:bg-gray-600"
+                >
+                  {service.is_active ? "Suspendre" : "Réactiver"}
+                </button>
+                {!isEditing && (
+                  <button
+                    onClick={() => startEdit(service)}
+                    className="text-sm px-3 py-1 rounded bg-emerald-700 hover:bg-emerald-600"
+                  >
+                    Modifier
+                  </button>
+                )}
+                <button
+                  onClick={() => removeService(service.id)}
+                  className="text-sm px-3 py-1 rounded bg-red-600 hover:bg-red-700"
+                >
+                  Supprimer
+                </button>
+              </div>
             </li>
-          ))}
+          );})}
         </ul>
       )}
     </div>

@@ -11,40 +11,19 @@ import {
   adminGetAvailabilities,
   adminCreateAvailability,
   adminDeleteAvailability,
-  adminGetServices,
 } from "@/lib/adminApi";
-
-type Availability = {
-  id: number;
-  service: number;
-  start_datetime: string;
-  end_datetime: string;
-};
-
-type Service = {
-  id: number;
-  name: string;
-};
+import { Availability } from "@/lib/types";
 
 export default function AdminAvailabilityPage() {
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [selectedService, setSelectedService] = useState<number | null>(null);
 
   /* --------------------------------------------------------
      LOAD DATA
   ---------------------------------------------------------*/
   const loadData = async () => {
     try {
-      const svs = await adminGetServices();
-      setServices(svs);
-
-      if (selectedService) {
-        const avs = await adminGetAvailabilities(selectedService);
-        setAvailabilities(avs);
-      } else {
-        setAvailabilities([]);
-      }
+      const avs = await adminGetAvailabilities();
+      setAvailabilities(avs);
     } catch (err) {
       console.error("Erreur chargement disponibilités/admin :", err);
     }
@@ -52,23 +31,17 @@ export default function AdminAvailabilityPage() {
 
   useEffect(() => {
     loadData();
-  }, [selectedService]);
+  }, []);
 
   /* --------------------------------------------------------
      ADD AVAILABILITY
   ---------------------------------------------------------*/
   const handleDateSelect = async (select: any) => {
-    if (!selectedService) {
-      alert("Veuillez choisir un service.");
-      return;
-    }
-
     const start = select.startStr;
     const end = select.endStr;
 
     try {
       await adminCreateAvailability({
-        service: selectedService,
         start_datetime: start,
         end_datetime: end,
       });
@@ -101,27 +74,6 @@ export default function AdminAvailabilityPage() {
     <div className="max-w-5xl mx-auto py-8 px-4 text-white">
       <h1 className="text-3xl font-bold mb-6">Gestion des Disponibilités</h1>
 
-      {/* --- CHOIX SERVICE --- */}
-      <div className="mb-6">
-        <label className="block mb-2 font-semibold">Choisir un service :</label>
-
-        <select
-          className="border bg-[#0D0D0D] text-white p-2 rounded w-full"
-          value={selectedService ?? ""}
-          onChange={(e) =>
-            setSelectedService(e.target.value ? Number(e.target.value) : null)
-          }
-        >
-          <option value="">— Choisir un service —</option>
-
-          {services.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
       {/* --- CALENDRIER --- */}
       <FullCalendar
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -138,7 +90,7 @@ export default function AdminAvailabilityPage() {
         }}
         events={availabilities.map((a) => ({
           id: String(a.id),
-          title: services.find((s) => s.id === a.service)?.name || "Service",
+          title: "Créneau libre",
           start: a.start_datetime,
           end: a.end_datetime,
         }))}
