@@ -549,6 +549,7 @@ function StepClient({
       <div className="space-y-3">
         <input
           type="text"
+          name="client_name"
           placeholder="Votre prénom / nom"
           value={clientName}
           onChange={(e) => setClientName(e.target.value)}
@@ -556,6 +557,7 @@ function StepClient({
         />
         <input
           type="email"
+          name="client_email"
           placeholder="Votre email"
           value={clientEmail}
           onChange={(e) => setClientEmail(e.target.value)}
@@ -563,6 +565,7 @@ function StepClient({
         />
         <input
           type="tel"
+          name="client_phone"
           placeholder="Téléphone (optionnel)"
           value={clientPhone}
           onChange={(e) => setClientPhone(e.target.value)}

@@ -90,6 +90,7 @@ export default function ContactPage() {
               </label>
               <input
                 type="text"
+                name="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="w-full border-softgray border rounded-xl px-4 py-3"
@@ -103,6 +104,7 @@ export default function ContactPage() {
               </label>
               <input
                 type="email"
+                name="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="w-full border-softgray border rounded-xl px-4 py-3"
@@ -116,6 +118,7 @@ export default function ContactPage() {
               </label>
               <input
                 type="text"
+                name="phone"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 className="w-full border-softgray border rounded-xl px-4 py-3"
@@ -127,6 +130,7 @@ export default function ContactPage() {
                 Votre message *
               </label>
               <textarea
+                name="message"
                 value={form.message}
                 onChange={(e) => setForm({ ...form, message: e.target.value })}
                 className="w-full border-softgray border rounded-xl px-4 py-3 h-32"

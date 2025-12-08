@@ -25,6 +25,17 @@ from .utils.email_templates import (
 
 logger = logging.getLogger(__name__)
 
+ADMIN_EMAIL = getattr(settings, "DEFAULT_FROM_EMAIL", None)
+ADMIN_PORTAL_URL = "https://samassbysam.com/admin"
+BOOKING_LOCATION = getattr(
+    settings,
+    "BOOKING_LOCATION",
+    "1 place Guy Ropartz 29000, Quimper",
+)
+BOOKING_PARKING = getattr(settings, "BOOKING_PARKING", "Place 🅿️ 31")
+BOOKING_CODE = getattr(settings, "BOOKING_CODE", "clé3579clé")
+BOOKING_FLOOR = getattr(settings, "BOOKING_FLOOR", "RDC, première porte à gauche")
+
 
 # ─────────────────────────────────────────────
 # SERVICES
@@ -111,20 +122,21 @@ class BookingViewSet(viewsets.ModelViewSet):
                 if duration_value > slot_minutes:
                     return Response({"error": "Durée supérieure au créneau disponible."}, status=400)
 
-                booking = Booking.objects.create(
-                    service=service,
-                    availability=availability,
-                    client_name=name,
-                    client_email=email,
-                    client_phone=phone,
-                    duration_minutes=duration_value,
-                    status="pending",
-                )
+            booking = Booking.objects.create(
+                service=service,
+                availability=availability,
+                client_name=name,
+                client_email=email,
+                client_phone=phone,
+                duration_minutes=duration_value,
+                status="pending",
+            )
 
-                availability.is_booked = True
-                availability.save()
+            availability.is_booked = True
+            availability.save()
 
-            # Email HTML au client : demande en attente
+        # Email HTML au client : demande en attente avec délai
+        try:
             html_content = html_booking_confirmation(
                 name,
                 service.title,
@@ -134,14 +146,44 @@ class BookingViewSet(viewsets.ModelViewSet):
 
             mail = EmailMultiAlternatives(
                 subject="Votre demande de réservation – SAMASS",
-                body="Email HTML requis.",
+                body=(
+                    "Votre demande est bien enregistrée. "
+                    "Sam a jusqu’à 13h le jour même pour confirmer."
+                ),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[email],
             )
             mail.attach_alternative(html_content, "text/html")
             mail.send()
+        except Exception as e:
+            logger.warning(f"Email client non envoyé : {e}")
 
-            return Response(BookingSerializer(booking).data, status=201)
+        # Email ADMIN : nouvelle demande
+        try:
+            admin_recipient = ADMIN_EMAIL or getattr(settings, "EMAIL_HOST_USER", None)
+            if admin_recipient:
+                admin_html = f"""
+                <div style="font-family:Arial,sans-serif;">
+                  <h2>Nouvelle demande de réservation</h2>
+                  <p><strong>Client :</strong> {name} ({email})</p>
+                  <p><strong>Service :</strong> {service.title}</p>
+                  <p><strong>Durée :</strong> {duration_value} min</p>
+                  <p><strong>Créneau :</strong> {availability.start_datetime} → {availability.end_datetime}</p>
+                  <p><a href="{ADMIN_PORTAL_URL}" style="color:#10b981;">Ouvrir l’espace admin</a></p>
+                </div>
+                """
+                admin_mail = EmailMultiAlternatives(
+                    subject="Nouvelle demande de réservation – SAMASS",
+                    body="Nouvelle demande de réservation.",
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[admin_recipient],
+                )
+                admin_mail.attach_alternative(admin_html, "text/html")
+                admin_mail.send()
+        except Exception as e:
+            logger.warning(f"Email admin non envoyé : {e}")
+
+        return Response(BookingSerializer(booking).data, status=201)
 
         except Availability.DoesNotExist:
             return Response({"error": "Créneau indisponible."}, status=400)
@@ -156,21 +198,24 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.status = "confirmed"
         booking.save()
 
-        html_content = html_booking_confirmation(
-            booking.client_name,
-            booking.service.title,
-            booking.availability.start_datetime.date(),
-            booking.availability.start_datetime.time(),
-        )
+        try:
+            html_content = html_booking_confirmation(
+                booking.client_name,
+                booking.service.title,
+                booking.availability.start_datetime.date(),
+                booking.availability.start_datetime.time(),
+            )
 
-        mail = EmailMultiAlternatives(
-            subject="Votre réservation est confirmée – SAMASS",
-            body="Email HTML requis.",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[booking.client_email],
-        )
-        mail.attach_alternative(html_content, "text/html")
-        mail.send()
+            mail = EmailMultiAlternatives(
+                subject="Votre réservation est confirmée – SAMASS",
+                body="Votre réservation est confirmée.",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[booking.client_email],
+            )
+            mail.attach_alternative(html_content, "text/html")
+            mail.send()
+        except Exception as e:
+            logger.warning(f"Email confirmation non envoyé : {e}")
 
         return Response({"message": "Réservation confirmée."})
 
@@ -185,21 +230,24 @@ class BookingViewSet(viewsets.ModelViewSet):
         availability.is_booked = False
         availability.save()
 
-        html_content = html_booking_cancellation(
-            booking.client_name,
-            booking.service.title,
-            availability.start_datetime.date(),
-            availability.start_datetime.time(),
-        )
+        try:
+            html_content = html_booking_cancellation(
+                booking.client_name,
+                booking.service.title,
+                availability.start_datetime.date(),
+                availability.start_datetime.time(),
+            )
 
-        mail = EmailMultiAlternatives(
-            subject="Votre réservation a été annulée – SAMASS",
-            body="Email HTML requis.",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[booking.client_email],
-        )
-        mail.attach_alternative(html_content, "text/html")
-        mail.send()
+            mail = EmailMultiAlternatives(
+                subject="Votre réservation a été annulée – SAMASS",
+                body="Votre créneau a été libéré.",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[booking.client_email],
+            )
+            mail.attach_alternative(html_content, "text/html")
+            mail.send()
+        except Exception as e:
+            logger.warning(f"Email annulation non envoyé : {e}")
 
         return Response({"message": "Réservation annulée et créneau libéré."})
 
