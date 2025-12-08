@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
@@ -35,6 +36,7 @@ BOOKING_LOCATION = getattr(
 BOOKING_PARKING = getattr(settings, "BOOKING_PARKING", "Place 🅿️ 31")
 BOOKING_CODE = getattr(settings, "BOOKING_CODE", "clé3579clé")
 BOOKING_FLOOR = getattr(settings, "BOOKING_FLOOR", "RDC, première porte à gauche")
+BUFFER_MINUTES = 60  # Pause minimale entre deux massages
 
 
 # ─────────────────────────────────────────────
@@ -125,9 +127,11 @@ class BookingViewSet(viewsets.ModelViewSet):
                     (availability.end_datetime - availability.start_datetime).total_seconds()
                     / 60
                 )
-                if duration_value > slot_minutes:
+                required_minutes = duration_value + BUFFER_MINUTES
+                if required_minutes > slot_minutes:
                     return Response(
-                        {"error": "Durée supérieure au créneau disponible."}, status=400
+                        {"error": "Le créneau est trop court pour cette durée (pause incluse)."},
+                        status=400,
                     )
 
                 booking = Booking.objects.create(
@@ -142,6 +146,26 @@ class BookingViewSet(viewsets.ModelViewSet):
 
                 availability.is_booked = True
                 availability.save()
+
+                booking_start = availability.start_datetime
+                booking_end = availability.start_datetime + timedelta(minutes=duration_value)
+                buffer_end = booking_end + timedelta(minutes=BUFFER_MINUTES)
+
+                # Créneau avant le massage
+                if booking_start > availability.start_datetime:
+                    Availability.objects.create(
+                        start_datetime=availability.start_datetime,
+                        end_datetime=booking_start,
+                        is_booked=False,
+                    )
+
+                # Créneau après le massage (après la pause)
+                if buffer_end < availability.end_datetime:
+                    Availability.objects.create(
+                        start_datetime=buffer_end,
+                        end_datetime=availability.end_datetime,
+                        is_booked=False,
+                    )
         except Availability.DoesNotExist:
             return Response({"error": "Créneau indisponible."}, status=400)
         except Service.DoesNotExist:
@@ -150,25 +174,23 @@ class BookingViewSet(viewsets.ModelViewSet):
             logger.error(f"Erreur réservation : {str(e)}")
             return Response({"error": "Erreur serveur."}, status=500)
 
-        # Email HTML au client : demande en attente avec délai
+        # Email texte au client : demande en attente avec délai
         try:
-            html_content = html_booking_confirmation(
-                name,
-                service.title,
-                availability.start_datetime.date(),
-                availability.start_datetime.time(),
+            text_body = (
+                f"Bonjour {name},\n\n"
+                f"Votre demande de massage {service.title} ({duration_value} min) est enregistrée pour "
+                f"{booking_start.strftime('%d/%m/%Y à %H:%M')}.\n\n"
+                "Si vous ne recevez pas de confirmation au plus tard 2h avant l'heure du massage, "
+                "considérez que la demande est annulée.\n\n"
+                "Vous recevrez un email de confirmation ou de refus de la part de Sam.\n\n"
+                "À bientôt,\nSAMASS"
             )
-
             mail = EmailMultiAlternatives(
                 subject="Votre demande de réservation – SAMASS",
-                body=(
-                    "Votre demande est bien enregistrée. "
-                    "Sam a jusqu’à 13h le jour même pour confirmer."
-                ),
+                body=text_body,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[email],
             )
-            mail.attach_alternative(html_content, "text/html")
             mail.send()
         except Exception as e:
             logger.warning(f"Email client non envoyé : {e}")
@@ -208,20 +230,25 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.save()
 
         try:
-            html_content = html_booking_confirmation(
-                booking.client_name,
-                booking.service.title,
-                booking.availability.start_datetime.date(),
-                booking.availability.start_datetime.time(),
-            )
-
+            start_dt = booking.availability.start_datetime
             mail = EmailMultiAlternatives(
                 subject="Votre réservation est confirmée – SAMASS",
-                body="Votre réservation est confirmée.",
+                body=(
+                    f"Bonjour {booking.client_name},\n\n"
+                    f"Je fais suite à votre demande de massage {booking.service.title} "
+                    f"de {booking.duration_minutes} minutes.\n\n"
+                    f"Je vous attends pour {start_dt.strftime('%H:%M')} le "
+                    f"{start_dt.strftime('%d/%m/%Y')}.\n\n"
+                    f"L’adresse : {BOOKING_LOCATION}\n"
+                    f"Place 🅿️ : {BOOKING_PARKING}\n"
+                    f"Code : {BOOKING_CODE}\n"
+                    f"Accès : {BOOKING_FLOOR}\n\n"
+                    "Merci de me prévenir en cas d’imprévu.\n\n"
+                    "Cordialement,\nSam 🍃"
+                ),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[booking.client_email],
             )
-            mail.attach_alternative(html_content, "text/html")
             mail.send()
         except Exception as e:
             logger.warning(f"Email confirmation non envoyé : {e}")
