@@ -21,6 +21,9 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
   const [selectedAvailability, setSelectedAvailability] =
     useState<Availability | null>(null);
+  const [availableDates, setAvailableDates] = useState<
+    { value: string; label: string }[]
+  >([]);
 
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
@@ -59,6 +62,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
             setStep(2); 
           }
         }
+        await refreshAvailableDates();
       } catch (e) {
         console.error(e);
       }
@@ -113,6 +117,35 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
     } catch (e) {
       console.error(e);
       setApiError("Impossible de charger les créneaux.");
+    }
+  }
+
+  async function refreshAvailableDates() {
+    try {
+      const data = await getAvailabilities();
+      const unique = Array.from(
+        new Set(
+          data
+            .filter((a) => !a.is_booked)
+            .map((a) => a.start_datetime.slice(0, 10))
+        )
+      ).sort();
+      const mapped = unique.map((iso) => ({
+        value: iso,
+        label: new Date(iso).toLocaleDateString("fr-FR", {
+          weekday: "short",
+          day: "2-digit",
+          month: "short",
+        }),
+      }));
+      setAvailableDates(mapped.length ? mapped : days);
+      if (!selectedDate && mapped.length) {
+        setSelectedDate(mapped[0].value);
+        void handleSelectDate(mapped[0].value);
+      }
+    } catch (e) {
+      console.error(e);
+      setAvailableDates(days);
     }
   }
 
@@ -199,7 +232,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
 
           {step === 2 && (
             <StepDate
-              days={days}
+              days={availableDates.length ? availableDates : days}
               selectedDate={selectedDate}
               onSelect={handleSelectDate}
               loading={false}
@@ -387,7 +420,7 @@ function StepDate({
   return (
     <div>
       <p className="text-xs text-gray-500 mb-3">
-        Sélectionnez un jour parmi les prochains jours ou choisissez une date précise.
+        Sélectionnez un jour parmi les prochains jours.
       </p>
       <div className="flex gap-2 overflow-x-auto pb-2">
         {days.map((d) => {
@@ -407,15 +440,6 @@ function StepDate({
             </button>
           );
         })}
-      </div>
-      <div className="mt-3">
-        <label className="text-xs text-gray-500 mb-1 block">Choisir une autre date</label>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => onSelect(e.target.value)}
-          className="border rounded px-3 py-2 text-xs"
-        />
       </div>
       {loading && (
         <p className="mt-3 text-xs text-gray-400">Chargement des créneaux…</p>
@@ -450,10 +474,7 @@ function StepSlot({
       </p>
       <div className="flex flex-wrap gap-2">
         {availabilities.map((a) => {
-          const start = new Date(a.start_datetime).toLocaleTimeString(
-            "fr-FR",
-            { hour: "2-digit", minute: "2-digit" }
-          );
+          const start = a.start_datetime.split("T")[1]?.slice(0, 5) || "";
           const isActive = selectedAvailability?.id === a.id;
           return (
             <button

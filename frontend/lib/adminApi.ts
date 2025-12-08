@@ -78,6 +78,15 @@ export const adminCreateAvailability = (data: {
     }),
   });
 
+export const adminUpdateAvailability = (
+  id: number,
+  data: { start_datetime: string; end_datetime: string }
+) =>
+  apiRequest<Availability>(`/availabilities/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
 export const adminDeleteAvailability = (id: number) =>
   apiRequest(`/availabilities/${id}/`, { method: "DELETE" });
 

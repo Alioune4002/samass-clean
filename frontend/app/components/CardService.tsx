@@ -25,7 +25,7 @@ export default function CardService({
     <div className="bg-white rounded-xl shadow-card p-6 border hover:shadow-lg transition">
       <h3 className="text-xl font-bold text-forest mb-2">{title}</h3>
 
-      <p className="text-softgray text-sm mb-4 text-justify">{description}</p>
+      <p className="text-softgray text-sm mb-4">{description}</p>
 
      
       {uniquePrice ? (

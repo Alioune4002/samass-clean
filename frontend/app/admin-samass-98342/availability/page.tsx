@@ -11,6 +11,7 @@ import {
   adminGetAvailabilities,
   adminCreateAvailability,
   adminDeleteAvailability,
+  adminUpdateAvailability,
 } from "@/lib/adminApi";
 import { Availability } from "@/lib/types";
 
@@ -20,6 +21,9 @@ export default function AdminAvailabilityPage() {
   const [manualStart, setManualStart] = useState("");
   const [manualEnd, setManualEnd] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editStart, setEditStart] = useState("");
+  const [editEnd, setEditEnd] = useState("");
 
   /* --------------------------------------------------------
      LOAD DATA
@@ -84,10 +88,11 @@ export default function AdminAvailabilityPage() {
 
       {/* --- CALENDRIER --- */}
         <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView="timeGridWeek"
-          slotDuration="00:30:00"
-          selectable={true}
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+        initialView="timeGridWeek"
+        slotDuration="00:30:00"
+        timeZone="local"
+        selectable={true}
         editable={false}
         height="auto"
         select={handleDateSelect}
@@ -173,34 +178,112 @@ export default function AdminAvailabilityPage() {
                 key={a.id}
                 className="flex items-center justify-between bg-[#0D0D0D] border border-gray-800 rounded px-3 py-2 text-sm"
               >
-                <div>
-                  <p className="text-white">
-                    {new Date(a.start_datetime).toLocaleString("fr-FR", {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}{" "}
-                    →{" "}
-                    {new Date(a.end_datetime).toLocaleTimeString("fr-FR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
+                <div className="flex-1">
+                  {editingId === a.id ? (
+                    <div className="flex flex-col md:flex-row gap-2">
+                      <input
+                        type="date"
+                        value={editStart.split("T")[0] || a.start_datetime.slice(0, 10)}
+                        onChange={(e) =>
+                          setEditStart(
+                            `${e.target.value}T${
+                              editStart.split("T")[1] || a.start_datetime.slice(11, 16)
+                            }:00`
+                          )
+                        }
+                        className="bg-[#0D0D0D] border border-gray-700 rounded px-2 py-1 text-white"
+                      />
+                      <input
+                        type="time"
+                        value={editStart.slice(11, 16) || a.start_datetime.slice(11, 16)}
+                        onChange={(e) =>
+                          setEditStart(
+                            `${(editStart || a.start_datetime).slice(0, 10)}T${e.target.value}:00`
+                          )
+                        }
+                        className="bg-[#0D0D0D] border border-gray-700 rounded px-2 py-1 text-white"
+                      />
+                      <input
+                        type="time"
+                        value={editEnd.slice(11, 16) || a.end_datetime.slice(11, 16)}
+                        onChange={(e) =>
+                          setEditEnd(
+                            `${(editEnd || a.end_datetime).slice(0, 10)}T${e.target.value}:00`
+                          )
+                        }
+                        className="bg-[#0D0D0D] border border-gray-700 rounded px-2 py-1 text-white"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-white">
+                      {formatDateTime(a.start_datetime)} → {formatTime(a.end_datetime)}
+                    </p>
+                  )}
                 </div>
-                <button
-                  onClick={async () => {
-                    if (!confirm("Supprimer ce créneau ?")) return;
-                    try {
-                      await adminDeleteAvailability(a.id);
-                      loadData();
-                    } catch (err) {
-                      console.error(err);
-                      alert("Impossible de supprimer le créneau.");
-                    }
-                  }}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  Supprimer
-                </button>
+                <div className="flex items-center gap-2">
+                  {editingId === a.id ? (
+                    <>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await adminUpdateAvailability(a.id, {
+                              start_datetime: editStart || a.start_datetime,
+                              end_datetime: editEnd || a.end_datetime,
+                            });
+                            setEditingId(null);
+                            setEditStart("");
+                            setEditEnd("");
+                            loadData();
+                          } catch (err) {
+                            console.error(err);
+                            alert("Impossible de mettre à jour.");
+                          }
+                        }}
+                        className="text-sm px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        Enregistrer
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingId(null);
+                          setEditStart("");
+                          setEditEnd("");
+                        }}
+                        className="text-sm px-3 py-1 rounded bg-gray-700"
+                      >
+                        Annuler
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditingId(a.id);
+                          setEditStart(a.start_datetime);
+                          setEditEnd(a.end_datetime);
+                        }}
+                        className="text-sm px-3 py-1 rounded bg-gray-700"
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm("Supprimer ce créneau ?")) return;
+                          try {
+                            await adminDeleteAvailability(a.id);
+                            loadData();
+                          } catch (err) {
+                            console.error(err);
+                            alert("Impossible de supprimer le créneau.");
+                          }
+                        }}
+                        className="text-sm px-3 py-1 rounded bg-red-600 hover:bg-red-700"
+                      >
+                        Supprimer
+                      </button>
+                    </>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
@@ -208,4 +291,16 @@ export default function AdminAvailabilityPage() {
       </div>
     </div>
   );
+}
+
+function formatDateTime(iso: string) {
+  const [date, time] = iso.split("T");
+  const [y, m, d] = date.split("-");
+  const hour = time?.slice(0, 5) || "";
+  return `${d}/${m}/${y} ${hour}`;
+}
+
+function formatTime(iso: string) {
+  const time = iso.split("T")[1] || "";
+  return time.slice(0, 5);
 }
