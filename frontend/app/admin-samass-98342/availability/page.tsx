@@ -2,11 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
-
 import {
   adminGetAvailabilities,
   adminCreateAvailability,
@@ -25,13 +20,16 @@ export default function AdminAvailabilityPage() {
   const [editStart, setEditStart] = useState("");
   const [editEnd, setEditEnd] = useState("");
 
-  /* --------------------------------------------------------
-     LOAD DATA
-  ---------------------------------------------------------*/
   const loadData = async () => {
     try {
       const avs = await adminGetAvailabilities();
-      setAvailabilities(avs);
+      setAvailabilities(
+        avs.sort(
+          (a, b) =>
+            new Date(a.start_datetime).getTime() -
+            new Date(b.start_datetime).getTime()
+        )
+      );
     } catch (err) {
       console.error("Erreur chargement disponibilités/admin :", err);
     }
@@ -82,36 +80,12 @@ export default function AdminAvailabilityPage() {
     <div className="max-w-5xl mx-auto py-8 px-4 text-white">
       <h1 className="text-3xl font-bold mb-6">Gestion des Disponibilités</h1>
       <p className="text-sm text-gray-300 mb-4">
-        Sélectionnez un créneau horaire dans la vue semaine/jour pour créer une
-        disponibilité. Un créneau réservé bloque toute la plage.
+        Ajoutez des créneaux horaires (début/fin). Un créneau réservé bloque
+        toute la plage. Vous pouvez modifier ou supprimer chaque créneau.
       </p>
 
-      {/* --- CALENDRIER --- */}
-        <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="timeGridWeek"
-        slotDuration="00:30:00"
-        timeZone="local"
-        selectable={true}
-        editable={false}
-        height="auto"
-        select={handleDateSelect}
-        eventClick={handleEventClick}
-        headerToolbar={{
-          left: "prev,next today",
-          center: "title",
-          right: "dayGridMonth,timeGridWeek,timeGridDay",
-        }}
-        events={availabilities.map((a) => ({
-          id: String(a.id),
-          title: "Créneau libre",
-          start: a.start_datetime,
-          end: a.end_datetime,
-        }))}
-      />
-
-      <div className="mt-8 bg-[#1A1A1A] border border-gray-800 p-4 rounded">
-        <h3 className="text-lg font-semibold mb-3">Ajouter un créneau manuel</h3>
+      <div className="mt-6 bg-[#1A1A1A] border border-gray-800 p-4 rounded">
+        <h3 className="text-lg font-semibold mb-3">Ajouter un créneau</h3>
         <div className="grid md:grid-cols-3 gap-3">
           <div>
             <label className="block text-sm mb-1">Date</label>
