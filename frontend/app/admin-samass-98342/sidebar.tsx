@@ -36,7 +36,7 @@ export default function Sidebar() {
       )}
 
       <aside
-        className={`md:static fixed top-0 left-0 h-full w-full md:w-64 max-w-full md:max-w-[80%] bg-[#111111] border-r border-gray-800 p-6 flex flex-col transform transition-transform duration-200 ${
+        className={`md:static fixed top-0 left-0 h-full w-72 md:w-64 max-w-[80%] bg-[#111111] border-r border-gray-800 p-6 flex flex-col transform transition-transform duration-200 ${
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         } z-30`}
       >

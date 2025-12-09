@@ -21,7 +21,7 @@ def seed_services(apps, schema_editor):
                 "Un massage dynamique conçu pour activer la circulation, dénouer les tensions profondes et "
                 "revitaliser tout le corps. Pressions fermes, pétrissages précis et gestes rapides pour un regain d’énergie."
             ),
-            "durations_prices": {"45": 50, "80": 70},
+            "durations_prices": {"45": 50, "60": 70},
         },
         {
             "title": "Massage Tantrique",

@@ -3,7 +3,7 @@ from email.mime.text import MIMEText
 
 sender = "samassbysam@gmail.com"
 receiver = "samassbysam@gmail.com"
-password = "tonmotdepasseouapppassword"  # Utilise le même mot de passe d'application
+password = "motdepasseouapppassword" 
 
 msg = MIMEText("Test email depuis SAMASS")
 msg['Subject'] = "Test SMTP"
