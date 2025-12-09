@@ -284,8 +284,9 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
           setSelectedService(s);
           setSelectedDuration(duration);
           setSelectedDate("");
-          setSelectedAvailability(null);
           setAvailabilities([]);
+          setTimeSlots([]);
+          setSelectedSlot(null);
         }}
       />
     )}
