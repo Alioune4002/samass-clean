@@ -79,6 +79,13 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
+            start = serializer.validated_data["start_datetime"]
+            end = serializer.validated_data["end_datetime"]
+            # Supprime les créneaux qui se chevauchent pour éviter les doublons incohérents
+            Availability.objects.filter(
+                start_datetime__lt=end,
+                end_datetime__gt=start,
+            ).delete()
             self.perform_create(serializer)
             return Response({"message": "Disponibilité ajoutée."}, status=201)
         return Response(serializer.errors, status=400)

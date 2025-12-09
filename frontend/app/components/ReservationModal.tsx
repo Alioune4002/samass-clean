@@ -15,7 +15,12 @@ const dateOptions: Intl.DateTimeFormatOptions = {
   weekday: "long",
   day: "2-digit",
   month: "long",
-  timeZone: "Europe/Paris",
+};
+
+const formatTime = (iso: string) => {
+  // Affiche HH:MM en local sans décalage forcé
+  const timePart = iso.split("T")[1];
+  return timePart ? timePart.slice(0, 5) : "";
 };
 
 type Props = {
@@ -246,12 +251,12 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
           services={services}
           selectedService={selectedService}
           selectedDuration={selectedDuration}
-          onSelect={(s, duration) => {
-            setSelectedService(s);
-            setSelectedDuration(duration);
-          }}
-        />
-      )}
+        onSelect={(s, duration) => {
+          setSelectedService(s);
+          setSelectedDuration(duration);
+        }}
+      />
+    )}
 
           {step === 2 && (
             <StepDate
@@ -396,7 +401,7 @@ function StepService({
               <span className="font-medium text-gray-900">{s.title}</span>
             </div>
             {durations.length > 0 && (
-              <div className="mt-2 space-y-2 text-[11px] text-emerald-700">
+              <div className="mt-2 space-y-2 text-[11px] text-emerald-700 text-center md:text-left">
                 {durations.map(([minutes, price]) => (
                   <label
                     key={minutes}
@@ -528,10 +533,7 @@ function StepSlot({
       </p>
       <div className="flex flex-wrap gap-2">
         {availabilities.map((a) => {
-          const start = new Date(a.start_datetime).toLocaleTimeString(
-            "fr-FR",
-            timeOptions
-          );
+          const start = formatTime(a.start_datetime);
           const isActive = selectedAvailability?.id === a.id;
           return (
             <button
@@ -586,11 +588,7 @@ function StepClient({
               "fr-FR",
               dateOptions
             )}{" "}
-            à{" "}
-            {new Date(availability.start_datetime).toLocaleTimeString(
-              "fr-FR",
-              timeOptions
-            )}
+            à {formatTime(availability.start_datetime)}
           </p>
           {duration && (
             <p className="mt-1">Durée choisie : {duration} min</p>
