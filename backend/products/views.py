@@ -169,8 +169,8 @@ class BookingViewSet(viewsets.ModelViewSet):
                 slot_start = availability.start_datetime
                 slot_end = availability.end_datetime
 
-                booking_start = slot_start
-                booking_end = slot_start + timedelta(minutes=duration_value)
+                booking_start = availability.start_datetime
+                booking_end = booking_start + timedelta(minutes=duration_value)
                 buffer_end = booking_end + timedelta(minutes=BUFFER_MINUTES)
 
                 # Créneau avant le massage

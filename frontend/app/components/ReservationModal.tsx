@@ -18,9 +18,7 @@ const dateOptions: Intl.DateTimeFormatOptions = {
 };
 
 const formatTime = (iso: string) => {
-  // Affiche HH:MM en local sans décalage forcé
-  const timePart = iso.split("T")[1];
-  return timePart ? timePart.slice(0, 5) : "";
+  return new Date(iso).toLocaleTimeString("fr-FR", timeOptions);
 };
 
 type Props = {
@@ -78,7 +76,6 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
             setSelectedService(found);
             const firstDuration = Object.keys(found.durations_prices || {})[0];
             setSelectedDuration(firstDuration ? Number(firstDuration) : null);
-            setStep(2); 
           }
         }
         await refreshAvailableDates();
@@ -254,6 +251,9 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
         onSelect={(s, duration) => {
           setSelectedService(s);
           setSelectedDuration(duration);
+          setSelectedDate("");
+          setSelectedAvailability(null);
+          setAvailabilities([]);
         }}
       />
     )}
