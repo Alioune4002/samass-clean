@@ -8,7 +8,6 @@ import { Availability, Service } from "@/lib/types";
 const timeOptions: Intl.DateTimeFormatOptions = {
   hour: "2-digit",
   minute: "2-digit",
-  timeZone: "Europe/Paris",
 };
 
 const dateOptions: Intl.DateTimeFormatOptions = {
@@ -17,8 +16,15 @@ const dateOptions: Intl.DateTimeFormatOptions = {
   month: "long",
 };
 
+const toLocalDate = (iso: string) => {
+  const [datePart, timePart] = iso.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute] = timePart.split(":").map(Number);
+  return new Date(year, month - 1, day, hour, minute);
+};
+
 const formatTime = (iso: string) => {
-  return new Date(iso).toLocaleTimeString("fr-FR", timeOptions);
+  return toLocalDate(iso).toLocaleTimeString("fr-FR", timeOptions);
 };
 
 type Props = {
@@ -141,8 +147,8 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
 
       const generatedSlots: { availabilityId: number; start: string }[] = [];
       filtered.forEach((a) => {
-        const start = new Date(a.start_datetime);
-        const end = new Date(a.end_datetime);
+        const start = toLocalDate(a.start_datetime);
+        const end = toLocalDate(a.end_datetime);
         const stepMinutes = 60; // pas de 1h entre départs
         const bufferMinutes = 60;
         let cursor = new Date(start);
