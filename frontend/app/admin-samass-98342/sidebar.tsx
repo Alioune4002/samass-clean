@@ -18,15 +18,13 @@ export default function Sidebar() {
 
   return (
     <>
-      <div className="md:hidden sticky top-0 z-40 flex items-center justify-between bg-[#0D0D0D] border-b border-gray-800 px-4 py-3">
-        <div className="text-lg font-semibold text-emerald-400">SAMASS Admin</div>
-        <button
-          onClick={() => setOpen(!open)}
-          className="px-3 py-2 bg-emerald-600 rounded-lg text-white"
-        >
-          {open ? "Fermer" : "Menu"}
-        </button>
-      </div>
+      {/* Bouton flottant mobile pour ouvrir le menu */}
+      <button
+        onClick={() => setOpen(true)}
+        className="md:hidden fixed top-3 left-3 z-40 bg-emerald-600 text-white px-3 py-2 rounded-full shadow-lg"
+      >
+        Menu
+      </button>
 
       {open && (
         <div
