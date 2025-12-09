@@ -1,5 +1,5 @@
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from django.utils import timezone
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -118,6 +118,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         service_id = data.get("service") or data.get("service_id")
         availability_id = data.get("availability") or data.get("availability_id")
         duration_minutes = data.get("duration_minutes")
+        start_datetime_raw = data.get("start_datetime")
         name = data.get("client_name")
         email = data.get("client_email")
         phone = data.get("client_phone", "")
@@ -129,6 +130,15 @@ class BookingViewSet(viewsets.ModelViewSet):
             duration_value = int(duration_minutes)
         except (TypeError, ValueError):
             return Response({"error": "Durée invalide."}, status=400)
+
+        try:
+            start_override = (
+                datetime.fromisoformat(start_datetime_raw)
+                if start_datetime_raw
+                else None
+            )
+        except Exception:
+            return Response({"error": "Format de date invalide."}, status=400)
 
         try:
             with transaction.atomic():
@@ -153,25 +163,26 @@ class BookingViewSet(viewsets.ModelViewSet):
                         status=400,
                     )
 
-                booking = Booking.objects.create(
-                    service=service,
-                    availability=availability,
-                    client_name=name,
-                    client_email=email,
-                    client_phone=phone,
-                    duration_minutes=duration_value,
-                    status="pending",
-                )
-
-                availability.is_booked = True
-                availability.save()
-
                 slot_start = availability.start_datetime
                 slot_end = availability.end_datetime
 
-                booking_start = availability.start_datetime
+                booking_start = start_override or slot_start
                 booking_end = booking_start + timedelta(minutes=duration_value)
                 buffer_end = booking_end + timedelta(minutes=BUFFER_MINUTES)
+
+                # Refus si la demande est à moins de 2h du début
+                if booking_start < timezone.now() + timedelta(hours=2):
+                    return Response(
+                        {"error": "Sam n'accepte pas les rendez-vous réservés à moins de 2h."},
+                        status=400,
+                    )
+
+                # Vérifie que la demande est dans la fenêtre
+                if booking_start < slot_start or booking_end > slot_end:
+                    return Response(
+                        {"error": "Créneau incompatible avec ces horaires."},
+                        status=400,
+                    )
 
                 # Créneau avant le massage
                 if booking_start > slot_start:
@@ -188,6 +199,26 @@ class BookingViewSet(viewsets.ModelViewSet):
                         end_datetime=slot_end,
                         is_booked=False,
                     )
+
+                # Créneau réservé (exactement sur la durée du massage)
+                booked_availability = Availability.objects.create(
+                    start_datetime=booking_start,
+                    end_datetime=booking_end,
+                    is_booked=True,
+                )
+
+                # Supprime le bloc original
+                availability.delete()
+
+                booking = Booking.objects.create(
+                    service=service,
+                    availability=booked_availability,
+                    client_name=name,
+                    client_email=email,
+                    client_phone=phone,
+                    duration_minutes=duration_value,
+                    status="pending",
+                )
         except Availability.DoesNotExist:
             return Response({"error": "Créneau indisponible."}, status=400)
         except Service.DoesNotExist:

@@ -56,6 +56,7 @@ export async function createBooking(data: {
   availabilityId: number;
   serviceId: number;
   durationMinutes: number;
+  startDateTime: string;
 }): Promise<Booking> {
   return apiFetch<Booking>("/bookings/", {
     method: "POST",
@@ -66,6 +67,7 @@ export async function createBooking(data: {
       service_id: data.serviceId,
       availability_id: data.availabilityId,
       duration_minutes: data.durationMinutes,
+      start_datetime: data.startDateTime,
     }),
   });
 }

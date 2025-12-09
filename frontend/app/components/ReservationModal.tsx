@@ -36,8 +36,13 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
 
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
-  const [selectedAvailability, setSelectedAvailability] =
-    useState<Availability | null>(null);
+  const [timeSlots, setTimeSlots] = useState<
+    { availabilityId: number; start: string }[]
+  >([]);
+  const [selectedSlot, setSelectedSlot] = useState<{
+    availabilityId: number;
+    start: string;
+  } | null>(null);
   const [availableDates, setAvailableDates] = useState<
     { value: string; label: string }[]
   >([]);
@@ -94,7 +99,8 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
     setSelectedDuration(null);
     setSelectedDate("");
     setAvailabilities([]);
-    setSelectedAvailability(null);
+    setTimeSlots([]);
+    setSelectedSlot(null);
     setClientName("");
     setClientEmail("");
     setClientPhone("");
@@ -117,7 +123,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
   async function handleSelectDate(date: string) {
     if (!selectedService || !selectedDuration) return;
     setSelectedDate(date);
-    setSelectedAvailability(null);
+    setSelectedSlot(null);
     setApiError(null);
 
     try {
@@ -132,6 +138,27 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
           return !a.is_booked && selectedDuration <= slotMinutes;
         });
       setAvailabilities(filtered);
+
+      const generatedSlots: { availabilityId: number; start: string }[] = [];
+      filtered.forEach((a) => {
+        const start = new Date(a.start_datetime);
+        const end = new Date(a.end_datetime);
+        const stepMinutes = 60; // pas de 1h entre départs
+        const bufferMinutes = 60;
+        let cursor = new Date(start);
+        while (
+          cursor.getTime() +
+            (selectedDuration + bufferMinutes) * 60000 <=
+          end.getTime()
+        ) {
+          generatedSlots.push({
+            availabilityId: a.id,
+            start: cursor.toISOString(),
+          });
+          cursor = new Date(cursor.getTime() + stepMinutes * 60000);
+        }
+      });
+      setTimeSlots(generatedSlots);
     } catch (e) {
       console.error(e);
       setApiError("Impossible de charger les créneaux.");
@@ -168,7 +195,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
   }
 
   async function handleSubmit() {
-    if (!selectedService || !selectedAvailability || !selectedDuration) return;
+    if (!selectedService || !selectedSlot || !selectedDuration) return;
     setLoading(true);
     setApiError(null);
 
@@ -178,8 +205,9 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
         client_email: clientEmail,
         client_phone: clientPhone,
         serviceId: selectedService.id,
-        availabilityId: selectedAvailability.id,
+        availabilityId: selectedSlot.availabilityId,
         durationMinutes: selectedDuration,
+        startDateTime: selectedSlot.start,
       });
       setStep(5);
     } catch (err: any) {
@@ -187,6 +215,10 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
       if (msg.includes("trop court") || msg.includes("Durée supérieure")) {
         setApiError(
           "Ce créneau est déjà partiellement pris. Choisissez un autre horaire ou contactez Sam."
+        );
+      } else if (msg.includes("moins de 2h") || msg.includes("2h")) {
+        setApiError(
+          "Sam n'accepte pas les demandes créées moins de 2h avant le début. Merci de choisir un horaire ultérieur."
         );
       } else {
         setApiError(msg);
@@ -269,16 +301,16 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
 
           {step === 3 && (
             <StepSlot
-              availabilities={availabilities}
-              selectedAvailability={selectedAvailability}
-              onSelect={setSelectedAvailability}
+              slots={timeSlots}
+              selectedSlot={selectedSlot}
+              onSelect={setSelectedSlot}
             />
           )}
 
           {step === 4 && (
             <StepClient
               service={selectedService}
-              availability={selectedAvailability}
+              slot={selectedSlot}
               duration={selectedDuration}
               clientName={clientName}
               clientEmail={clientEmail}
@@ -329,7 +361,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
               disabled={
                 (step === 1 && (!selectedService || !selectedDuration)) ||
                 (step === 2 && !selectedDate) ||
-                (step === 3 && !selectedAvailability) ||
+                (step === 3 && !selectedSlot) ||
                 (step === 4 &&
                   (!clientName.trim() || !clientEmail.trim()) ||
                   loading)
@@ -497,17 +529,13 @@ function StepDate({
 }
 
 type StepSlotProps = {
-  availabilities: Availability[];
-  selectedAvailability: Availability | null;
-  onSelect: (a: Availability) => void;
+  slots: { availabilityId: number; start: string }[];
+  selectedSlot: { availabilityId: number; start: string } | null;
+  onSelect: (s: { availabilityId: number; start: string }) => void;
 };
 
-function StepSlot({
-  availabilities,
-  selectedAvailability,
-  onSelect,
-}: StepSlotProps) {
-  if (!availabilities.length) {
+function StepSlot({ slots, selectedSlot, onSelect }: StepSlotProps) {
+  if (!slots.length) {
     return (
       <div className="space-y-3">
         <p className="text-sm text-gray-700 font-medium">
@@ -532,21 +560,23 @@ function StepSlot({
         Choisissez l&apos;heure qui vous convient.
       </p>
       <div className="flex flex-wrap gap-2">
-        {availabilities.map((a) => {
-          const start = formatTime(a.start_datetime);
-          const isActive = selectedAvailability?.id === a.id;
+        {slots.map((slot, idx) => {
+          const isActive =
+            selectedSlot?.availabilityId === slot.availabilityId &&
+            selectedSlot.start === slot.start;
+          const label = formatTime(slot.start);
           return (
             <button
-              key={a.id}
+              key={`${slot.availabilityId}-${idx}`}
               type="button"
-              onClick={() => onSelect(a)}
+              onClick={() => onSelect(slot)}
               className={`px-3 py-2 rounded-full border text-xs ${
                 isActive
                   ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                   : "border-gray-200 text-gray-700 hover:border-gray-300"
               }`}
             >
-              {start}
+              {label}
             </button>
           );
         })}
@@ -557,7 +587,7 @@ function StepSlot({
 
 type StepClientProps = {
   service: Service | null;
-  availability: Availability | null;
+  slot: { availabilityId: number; start: string } | null;
   duration: number | null;
   clientName: string;
   clientEmail: string;
@@ -569,7 +599,7 @@ type StepClientProps = {
 
 function StepClient({
   service,
-  availability,
+  slot,
   duration,
   clientName,
   clientEmail,
@@ -580,15 +610,15 @@ function StepClient({
 }: StepClientProps) {
   return (
     <div className="space-y-4">
-      {service && availability && (
+      {service && slot && (
         <div className="rounded-2xl bg-gray-50 border border-gray-200 p-3 text-xs text-gray-700">
           <p className="font-medium text-gray-900 mb-1">{service.title}</p>
           <p>
-            {new Date(availability.start_datetime).toLocaleDateString(
+            {new Date(slot.start).toLocaleDateString(
               "fr-FR",
               dateOptions
             )}{" "}
-            à {formatTime(availability.start_datetime)}
+            à {formatTime(slot.start)}
           </p>
           {duration && (
             <p className="mt-1">Durée choisie : {duration} min</p>
