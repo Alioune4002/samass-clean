@@ -18,10 +18,10 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Bouton flottant mobile pour ouvrir le menu */}
+
       <button
         onClick={() => setOpen(true)}
-        className="md:hidden fixed top-3 left-3 z-40 bg-emerald-600 text-white px-3 py-2 rounded-full shadow-lg"
+        className="md:hidden fixed top-3 right-3 z-40 bg-emerald-600 text-white px-3 py-2 rounded-full shadow-lg"
       >
         Menu
       </button>
@@ -34,7 +34,7 @@ export default function Sidebar() {
       )}
 
       <aside
-        className={`md:static fixed top-0 left-0 h-full w-72 md:w-64 max-w-[80%] bg-[#111111] border-r border-gray-800 p-6 flex flex-col transform transition-transform duration-200 ${
+        className={`md:static fixed top-0 left-0 h-full w-72 md:w-64 max-w-[80%] bg-[#111111] border-r border-gray-800 p-6 pt-16 md:pt-6 flex flex-col transform transition-transform duration-200 ${
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         } z-30`}
       >
