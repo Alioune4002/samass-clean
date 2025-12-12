@@ -109,7 +109,14 @@ export type ContactMessage = {
   phone?: string;
   message: string;
   created_at: string;
+  is_read?: boolean;
 };
 
 export const adminGetMessages = () =>
   apiRequest<ContactMessage[]>(`/contact/`);
+
+export const adminDeleteMessage = (id: number) =>
+  apiRequest(`/contact/${id}/`, { method: "DELETE" });
+
+export const adminMarkMessageRead = (id: number) =>
+  apiRequest<ContactMessage>(`/contact/${id}/`, { method: "PATCH" });

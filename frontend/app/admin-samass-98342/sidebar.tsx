@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { adminGetMessages, adminGetBookings } from "@/lib/adminApi";
 
 const links = [
   { href: "/admin-samass-98342/dashboard", label: "Dashboard" },
@@ -15,6 +16,28 @@ const links = [
 export default function Sidebar() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const [badges, setBadges] = useState<{ bookings: number; messages: number }>({
+    bookings: 0,
+    messages: 0,
+  });
+
+  useEffect(() => {
+    async function loadBadges() {
+      try {
+        const [bookings, messages] = await Promise.all([
+          adminGetBookings(),
+          adminGetMessages(),
+        ]);
+        setBadges({
+          bookings: bookings.filter((b) => b.status === "pending").length,
+          messages: messages.filter((m) => !m.is_read).length,
+        });
+      } catch (e) {
+        console.error("Badges admin non chargés :", e);
+      }
+    }
+    loadBadges();
+  }, []);
 
   return (
     <>
@@ -57,7 +80,19 @@ export default function Sidebar() {
                     : "text-gray-300 hover:bg-gray-800 hover:text-white"
                 }`}
               >
-                {link.label}
+                <span className="flex items-center gap-2">
+                  {link.label}
+                  {link.label === "Réservations" && badges.bookings > 0 && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white">
+                      {badges.bookings}
+                    </span>
+                  )}
+                  {link.label === "Messages" && badges.messages > 0 && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white">
+                      {badges.messages}
+                    </span>
+                  )}
+                </span>
               </Link>
             );
           })}

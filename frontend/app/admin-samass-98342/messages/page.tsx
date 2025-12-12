@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { adminGetMessages, ContactMessage } from "@/lib/adminApi";
+import {
+  adminDeleteMessage,
+  adminGetMessages,
+  adminMarkMessageRead,
+  ContactMessage,
+} from "@/lib/adminApi";
 import Skeleton from "@/app/components/ui/Skeleton";
 
 export default function AdminMessagesPage() {
@@ -13,6 +18,10 @@ export default function AdminMessagesPage() {
       try {
         const data = await adminGetMessages();
         setMessages(data);
+        // Marque comme lu pour enlever les notifications
+        data
+          .filter((m) => !m.is_read)
+          .forEach((m) => adminMarkMessageRead(m.id).catch(() => null));
       } catch (err) {
         console.error("Erreur chargement messages :", err);
       } finally {
@@ -50,13 +59,29 @@ export default function AdminMessagesPage() {
               key={m.id}
               className="bg-[#1A1A1A] border border-gray-700 p-6 rounded-xl shadow-lg"
             >
-              <div className="flex justify-between items-center mb-3">
+              <div className="flex justify-between items-center mb-3 gap-3">
                 <h2 className="text-lg font-semibold text-emerald-400">
                   {m.name}
                 </h2>
-                <span className="text-gray-400 text-sm">
-                  {new Date(m.created_at).toLocaleString("fr-FR")}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-400 text-sm">
+                    {new Date(m.created_at).toLocaleString("fr-FR")}
+                  </span>
+                  <button
+                    onClick={() =>
+                      adminDeleteMessage(m.id)
+                        .then(() =>
+                          setMessages((prev) => prev.filter((x) => x.id !== m.id))
+                        )
+                        .catch((err) =>
+                          console.error("Suppression message impossible :", err)
+                        )
+                    }
+                    className="text-xs text-red-400 hover:text-red-300 underline"
+                  >
+                    Supprimer
+                  </button>
+                </div>
               </div>
 
               <p className="text-gray-300 text-sm mb-1">

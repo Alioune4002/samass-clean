@@ -88,7 +88,9 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "apikey"
 EMAIL_HOST_PASSWORD = os.environ.get("SENDGRID_API_KEY")
-DEFAULT_FROM_EMAIL = "samassbysam@gmail.com"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "samassbysam@gmail.com")
+# Adresse de réception des notifications admin (fallback sur FROM)
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", DEFAULT_FROM_EMAIL)
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": datetime.timedelta(hours=1),

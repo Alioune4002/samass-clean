@@ -5,6 +5,7 @@ from .views import (
     AvailabilityViewSet,
     BookingViewSet,
     contact_form_submit,
+    contact_message_detail,
 )
 
 router = DefaultRouter()
@@ -15,4 +16,5 @@ router.register(r"bookings", BookingViewSet)
 urlpatterns = [
     path("", include(router.urls)),
     path("contact/", contact_form_submit, name="contact_form_submit"),
+    path("contact/<int:pk>/", contact_message_detail, name="contact_message_detail"),
 ]
