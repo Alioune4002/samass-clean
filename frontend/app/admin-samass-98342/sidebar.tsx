@@ -21,22 +21,35 @@ export default function Sidebar() {
     messages: 0,
   });
 
-  useEffect(() => {
-    async function loadBadges() {
-      try {
-        const [bookings, messages] = await Promise.all([
-          adminGetBookings(),
-          adminGetMessages(),
-        ]);
-        setBadges({
-          bookings: bookings.filter((b) => b.status === "pending").length,
-          messages: messages.filter((m) => !m.is_read).length,
-        });
-      } catch (e) {
-        console.error("Badges admin non chargés :", e);
-      }
+  const refreshBadges = async () => {
+    try {
+      const [bookings, messages] = await Promise.all([
+        adminGetBookings(),
+        adminGetMessages(),
+      ]);
+      setBadges({
+        bookings: bookings.filter((b) => b.status === "pending").length,
+        messages: messages.filter((m) => !m.is_read).length,
+      });
+    } catch (e) {
+      console.error("Badges admin non chargés :", e);
     }
-    loadBadges();
+  };
+
+  useEffect(() => {
+    refreshBadges();
+  }, [path]);
+
+  useEffect(() => {
+    const handler = () => refreshBadges();
+    if (typeof window !== "undefined") {
+      window.addEventListener("admin-badges-refresh", handler);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("admin-badges-refresh", handler);
+      }
+    };
   }, []);
 
   return (
@@ -73,7 +86,13 @@ export default function Sidebar() {
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  // si on ouvre la page, on rafraîchit les badges pour la faire disparaître
+                  if (link.label === "Messages" || link.label === "Réservations") {
+                    refreshBadges();
+                  }
+                }}
                 className={`block px-4 py-2 rounded-lg transition font-medium ${
                   active
                     ? "bg-emerald-600 text-white"

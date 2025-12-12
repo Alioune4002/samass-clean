@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.conf import settings
@@ -50,6 +51,33 @@ def render_email(title: str, paragraphs: list[str]) -> str:
       <p style='margin:18px 0 0;font-size:12px;color:#6b7280;'>SAMASS — Massages à Quimper</p>
     </div>
     """
+
+
+def send_email(to_emails, subject: str, text: str, html: str | None = None):
+    """
+    Envoi via l'API SendGrid (plus fiable que SMTP sur Render).
+    """
+    try:
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail
+
+        api_key = os.environ.get("SENDGRID_API_KEY")
+        if not api_key:
+            raise RuntimeError("SENDGRID_API_KEY manquant")
+
+        message = Mail(
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to_emails=to_emails,
+            subject=subject,
+            plain_text_content=text,
+            html_content=html or text,
+        )
+        sg = SendGridAPIClient(api_key)
+        sg.send(message)
+        return True
+    except Exception as exc:
+        logger.warning(f"SendGrid API error: {exc}")
+        return False
 
 
 # ─────────────────────────────────────────────
@@ -253,14 +281,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                     "Vous recevrez un email de confirmation ou de refus. Pensez à vérifier vos spams.",
                 ],
             )
-            mail = EmailMultiAlternatives(
-                subject="Votre demande de réservation – SAMASS",
-                body=text_body,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[email],
-            )
-            mail.attach_alternative(html_body, "text/html")
-            mail.send()
+            send_email([email], "Votre demande de réservation – SAMASS", text_body, html_body)
         except Exception as e:
             logger.warning(f"Email client non envoyé : {e}")
 
@@ -280,14 +301,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                         f"<a href='{ADMIN_PORTAL_URL}' style='color:#047857;'>Ouvrir l’espace admin</a>",
                     ],
                 )
-                admin_mail = EmailMultiAlternatives(
-                    subject="Nouvelle demande de réservation – SAMASS",
-                    body="Nouvelle demande de réservation.",
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=[admin_recipient],
-                )
-                admin_mail.attach_alternative(admin_html, "text/html")
-                admin_mail.send()
+                send_email([admin_recipient], "Nouvelle demande de réservation – SAMASS", "Nouvelle demande de réservation.", admin_html)
         except Exception as e:
             logger.warning(f"Email admin non envoyé : {e}")
 
@@ -325,14 +339,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                     "Merci de prévenir en cas d’imprévu.",
                 ],
             )
-            mail = EmailMultiAlternatives(
-                subject="Votre réservation est confirmée – SAMASS",
-                body=text_body,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[booking.client_email],
-            )
-            mail.attach_alternative(html_body, "text/html")
-            mail.send()
+            send_email([booking.client_email], "Votre réservation est confirmée – SAMASS", text_body, html_body)
         except Exception as e:
             logger.warning(f"Email confirmation non envoyé : {e}")
 
@@ -359,18 +366,16 @@ class BookingViewSet(viewsets.ModelViewSet):
                     "<a href='https://samassbysam.com/contact' style='color:#047857;'>Contacter Sam</a>",
                 ],
             )
-            mail = EmailMultiAlternatives(
-                subject="Votre réservation a été annulée – SAMASS",
-                body=(
+            send_email(
+                [booking.client_email],
+                "Votre réservation a été annulée – SAMASS",
+                (
                     f"Votre créneau pour {booking.service.title} a été libéré. "
                     "Sam a décliné pour raisons personnelles. "
                     "Vous pouvez choisir un autre créneau ou le contacter : https://samassbysam.com/contact"
                 ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[booking.client_email],
+                html_content,
             )
-            mail.attach_alternative(html_content, "text/html")
-            mail.send()
         except Exception as e:
             logger.warning(f"Email annulation non envoyé : {e}")
 
@@ -386,72 +391,64 @@ def contact_form_submit(request):
         messages = ContactMessage.objects.all().order_by("-created_at")
         return Response(ContactMessageSerializer(messages, many=True).data)
 
+    # POST
+    name = request.data.get("name")
+    email = request.data.get("email")
+    phone = request.data.get("phone", "")
+    message = request.data.get("message")
+
+    if not all([name, email, message]):
+        return Response({"error": "Champs requis manquants."}, status=400)
+
     try:
-        name = request.data.get("name")
-        email = request.data.get("email")
-        phone = request.data.get("phone", "")
-        message = request.data.get("message")
-
-        if not all([name, email, message]):
-            return Response({"error": "Champs requis manquants."}, status=400)
-
         contact = ContactMessage.objects.create(
             name=name, email=email, phone=phone, message=message
         )
-
-        admin_email = getattr(settings, "ADMIN_EMAIL", None) or getattr(settings, "DEFAULT_FROM_EMAIL", None)
-
-        # Email ADMIN (HTML)
-        try:
-            if admin_email:
-                html_admin = render_email(
-                    "Nouveau message de contact",
-                    [
-                        f"<strong>Nom :</strong> {name}",
-                        f"<strong>Email :</strong> {email}",
-                        f"<strong>Téléphone :</strong> {phone or '—'}",
-                        f"<strong>Message :</strong><br/>{message}",
-                    ],
-                )
-
-                mail_admin = EmailMultiAlternatives(
-                    subject=f"Nouveau message – {name}",
-                    body=f"Message de {name} ({email}) : {message}",
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=[admin_email],
-                )
-                mail_admin.attach_alternative(html_admin, "text/html")
-                mail_admin.send()
-        except Exception as e:
-            logger.warning(f"Email admin contact non envoyé : {e}")
-
-        # Email CLIENT (HTML)
-        try:
-            html_client = render_email(
-                "Votre message a bien été reçu",
-                [
-                    f"Bonjour {name},",
-                    "Merci pour votre message. Je reviens vers vous rapidement.",
-                    "Pensez à vérifier vos spams pour ne rien manquer.",
-                ],
-            )
-
-            mail_client = EmailMultiAlternatives(
-                subject="Votre message a bien été reçu – SAMASS",
-                body="Merci pour votre message. Je reviens vers vous rapidement.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[email],
-            )
-            mail_client.attach_alternative(html_client, "text/html")
-            mail_client.send()
-        except Exception as e:
-            logger.warning(f"Email client contact non envoyé : {e}")
-
-        return Response(ContactMessageSerializer(contact).data, status=200)
-
     except Exception as e:
-        logger.error(f"Erreur contact : {str(e)}")
+        logger.error(f"Erreur enregistrement contact : {e}")
         return Response({"error": "Erreur serveur."}, status=500)
+
+    admin_email = getattr(settings, "ADMIN_EMAIL", None) or getattr(settings, "DEFAULT_FROM_EMAIL", None)
+
+    # Email ADMIN (HTML) — on ignore les erreurs d'envoi
+    html_admin = render_email(
+        "Nouveau message de contact",
+        [
+            f"<strong>Nom :</strong> {name}",
+            f"<strong>Email :</strong> {email}",
+            f"<strong>Téléphone :</strong> {phone or '—'}",
+            f"<strong>Message :</strong><br/>{message}",
+        ],
+    )
+    if admin_email:
+        sent = send_email(
+            [admin_email],
+            f"Nouveau message – {name}",
+            f"Message de {name} ({email}) : {message}",
+            html_admin,
+        )
+        if not sent:
+            logger.warning("Email admin contact non envoyé (SendGrid)")
+
+    # Email CLIENT (HTML) — on ignore les erreurs d'envoi
+    html_client = render_email(
+        "Votre message a bien été reçu",
+        [
+            f"Bonjour {name},",
+            "Merci pour votre message. Je reviens vers vous rapidement.",
+            "Pensez à vérifier vos spams pour ne rien manquer.",
+        ],
+    )
+    sent_client = send_email(
+        [email],
+        "Votre message a bien été reçu – SAMASS",
+        "Merci pour votre message. Je reviens vers vous rapidement.",
+        html_client,
+    )
+    if not sent_client:
+        logger.warning("Email client contact non envoyé (SendGrid)")
+
+    return Response(ContactMessageSerializer(contact).data, status=200)
 
 
 @api_view(["DELETE", "PATCH"])

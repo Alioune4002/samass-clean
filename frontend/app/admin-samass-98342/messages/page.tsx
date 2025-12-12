@@ -19,9 +19,18 @@ export default function AdminMessagesPage() {
         const data = await adminGetMessages();
         setMessages(data);
         // Marque comme lu pour enlever les notifications
-        data
-          .filter((m) => !m.is_read)
-          .forEach((m) => adminMarkMessageRead(m.id).catch(() => null));
+        const unread = data.filter((m) => !m.is_read);
+        if (unread.length) {
+          await Promise.all(
+            unread.map((m) => adminMarkMessageRead(m.id).catch(() => null))
+          );
+          // Déclenche un refresh des badges
+          window.dispatchEvent(new Event("admin-badges-refresh"));
+          // Mets à jour l'état local
+          setMessages((prev) =>
+            prev.map((m) => ({ ...m, is_read: true }))
+          );
+        }
       } catch (err) {
         console.error("Erreur chargement messages :", err);
       } finally {

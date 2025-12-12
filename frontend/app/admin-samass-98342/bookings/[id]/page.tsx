@@ -39,6 +39,10 @@ export default function BookingDetailPage() {
       } else {
         await adminCancelBooking(id);
       }
+      // rafraîchir les badges (pending -> confirm/cancel)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("admin-badges-refresh"));
+      }
       router.push("/admin-samass-98342/bookings");
     } catch (err) {
       console.error("Erreur action réservation :", err);
