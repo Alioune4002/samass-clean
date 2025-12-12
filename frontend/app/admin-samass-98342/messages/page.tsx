@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { adminGetMessages, ContactMessage } from "@/lib/adminApi";
+import Skeleton from "@/app/components/ui/Skeleton";
 
 export default function AdminMessagesPage() {
   const [messages, setMessages] = useState<ContactMessage[]>([]);
@@ -22,15 +23,25 @@ export default function AdminMessagesPage() {
     load();
   }, []);
 
-  if (loading) {
-    return <p className="text-gray-400 animate-pulse">Chargement…</p>;
-  }
-
   return (
     <div className="text-white space-y-6">
       <h1 className="text-3xl font-bold mb-4">Messages reçus</h1>
 
-      {messages.length === 0 ? (
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="bg-[#1A1A1A] border border-gray-700 p-6 rounded-xl shadow-lg"
+            >
+              <Skeleton className="h-4 w-1/3 mb-3" />
+              <Skeleton className="h-3 w-1/2 mb-2" />
+              <Skeleton className="h-3 w-full mb-1" />
+              <Skeleton className="h-3 w-5/6" />
+            </div>
+          ))}
+        </div>
+      ) : messages.length === 0 ? (
         <p className="text-gray-400">Aucun message pour le moment.</p>
       ) : (
         <div className="space-y-5">

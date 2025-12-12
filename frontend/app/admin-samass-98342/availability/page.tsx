@@ -9,6 +9,7 @@ import {
   adminUpdateAvailability,
 } from "@/lib/adminApi";
 import { Availability } from "@/lib/types";
+import Skeleton from "@/app/components/ui/Skeleton";
 
 export default function AdminAvailabilityPage() {
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
@@ -143,7 +144,22 @@ export default function AdminAvailabilityPage() {
 
       <div className="mt-8 bg-[#111111] border border-gray-800 p-4 rounded">
         <h3 className="text-lg font-semibold mb-3">Liste des disponibilités</h3>
-        {availabilities.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between bg-[#0D0D0D] border border-gray-800 rounded px-3 py-2 text-sm"
+              >
+                <div className="flex-1">
+                  <Skeleton className="h-4 w-1/2 mb-2" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+                <Skeleton className="h-8 w-20" />
+              </div>
+            ))}
+          </div>
+        ) : availabilities.length === 0 ? (
           <p className="text-gray-400 text-sm">Aucune disponibilité pour le moment.</p>
         ) : (
           <ul className="space-y-3">

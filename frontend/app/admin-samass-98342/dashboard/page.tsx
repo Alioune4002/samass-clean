@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  adminGetBookings,
-  adminGetMessages,
-} from "@/lib/adminApi";
+import { adminGetBookings, adminGetMessages } from "@/lib/adminApi";
 import { Booking } from "@/lib/types";
+import Skeleton from "@/app/components/ui/Skeleton";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -58,20 +56,32 @@ export default function AdminDashboard() {
     load();
   }, []);
 
-  if (loading) {
-    return <p className="text-gray-400 animate-pulse">Chargement…</p>;
-  }
-
   return (
     <div className="text-white space-y-8">
       <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
 
       {/* ---- CARDS STATS ---- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="RDV aujourd'hui" value={stats.todayBookings} />
-        <StatCard title="En attente" value={stats.pending} />
-        <StatCard title="Confirmés" value={stats.confirmed} />
-        <StatCard title="Messages reçus" value={stats.messages} />
+        {loading ? (
+          <>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-[#1A1A1A] p-6 rounded-xl border border-gray-800 shadow-lg"
+              >
+                <Skeleton className="h-4 w-2/3 mb-3" />
+                <Skeleton className="h-8 w-1/3" />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <StatCard title="RDV aujourd'hui" value={stats.todayBookings} />
+            <StatCard title="En attente" value={stats.pending} />
+            <StatCard title="Confirmés" value={stats.confirmed} />
+            <StatCard title="Messages reçus" value={stats.messages} />
+          </>
+        )}
       </div>
 
       {/* ---- PROCHAINS RDV ---- */}
@@ -80,7 +90,20 @@ export default function AdminDashboard() {
           Prochains rendez-vous
         </h2>
 
-        {stats.upcoming.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="p-4 bg-[#0D0D0D] rounded-lg border border-gray-800 shadow-lg"
+              >
+                <Skeleton className="h-4 w-1/2 mb-2" />
+                <Skeleton className="h-3 w-2/3 mb-2" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+            ))}
+          </div>
+        ) : stats.upcoming.length === 0 ? (
           <p className="text-gray-500">Aucun rendez-vous prochainement.</p>
         ) : (
           <div className="space-y-4">

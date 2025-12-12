@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { adminGetBookings } from "@/lib/adminApi";
 import { Booking } from "@/lib/types";
 import Link from "next/link";
+import Skeleton from "@/app/components/ui/Skeleton";
 
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -59,7 +60,18 @@ export default function AdminBookingsPage() {
 
       {/* LIST */}
       {loading ? (
-        <p className="text-gray-400 animate-pulse">Chargement…</p>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="p-4 bg-[#1A1A1A] border border-gray-800 rounded-lg"
+            >
+              <Skeleton className="h-4 w-1/3 mb-2" />
+              <Skeleton className="h-3 w-1/2 mb-2" />
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
         <p className="text-gray-400">Aucune réservation trouvée.</p>
       ) : (

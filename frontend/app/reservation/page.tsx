@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import ReservationModal from '../components/ReservationModal';
 import { getServices } from '@/lib/api';
 import { Service } from '@/lib/types';
+import Skeleton from '../components/ui/Skeleton';
 
 export default function Reservation() {
   const [services, setServices] = useState<Service[]>([]);
@@ -77,7 +78,23 @@ export default function Reservation() {
           </div>
 
           {loading ? (
-            <p className="text-gray-500">Chargement des massages…</p>
+            <div className="grid gap-6 md:grid-cols-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="rounded-2xl border border-emerald-50 bg-white p-6 shadow-sm"
+                >
+                  <Skeleton className="h-6 w-2/3 mb-3" />
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-5/6 mb-2" />
+                  <Skeleton className="h-4 w-2/3 mb-4" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-9 w-full rounded-lg" />
+                    <Skeleton className="h-9 w-3/4 rounded-lg" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : services.length === 0 ? (
             <p className="text-gray-500">
               Aucun massage n&apos;est disponible pour le moment.

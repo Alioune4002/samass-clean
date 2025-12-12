@@ -8,6 +8,7 @@ import {
   adminUpdateService,
 } from "@/lib/adminApi";
 import { Service } from "@/lib/types";
+import Skeleton from "@/app/components/ui/Skeleton";
 
 export default function AdminServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
@@ -220,7 +221,18 @@ export default function AdminServicesPage() {
       <h2 className="text-xl font-semibold mb-4">Services existants</h2>
 
       {loading ? (
-        <p>Chargement...</p>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="border border-gray-700 p-4 rounded bg-[#1A1A1A] shadow"
+            >
+              <Skeleton className="h-5 w-1/3 mb-2" />
+              <Skeleton className="h-4 w-4/5 mb-2" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          ))}
+        </div>
       ) : services.length === 0 ? (
         <p>Aucun service disponible.</p>
       ) : (

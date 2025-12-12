@@ -237,26 +237,32 @@ function TestimonialCarousel() {
     {
       text: "Un massage exceptionnel. Un vrai moment de lâcher prise dans un cadre apaisant.",
       author: "Maxime L.",
+      tag: "Relaxant",
     },
     {
       text: "Très professionnel, à l’écoute et bienveillant. Je suis sorti totalement détendu.",
       author: "Alex T.",
+      tag: "Présence",
     },
     {
       text: "Une expérience unique. On sent une vraie présence et une vraie maîtrise des gestes.",
       author: "Florian B.",
+      tag: "Tantrique",
     },
     {
       text: "Bonne adaptation de la pression et du rythme. Superbe séance, vraiment !",
       author: "Julien R.",
+      tag: "Tonique",
     },
     {
       text: "Cadre rassurant, écoute totale. C'est devenu mon rendez-vous mensuel pour souffler.",
       author: "Nicolas P.",
+      tag: "Fidélité",
     },
     {
       text: "Massage tonique bluffant : récupération express après mes séances de sport.",
       author: "Hugo M.",
+      tag: "Récupération",
     },
   ];
 
@@ -273,9 +279,22 @@ function TestimonialCarousel() {
       >
         {slides.map((s, i) => (
           <div key={i} className="min-w-full px-4 md:px-6">
-            <div className="p-6 bg-white rounded-xl shadow-card max-w-3xl mx-auto text-center">
-              <p className="text-softgray italic mb-4">{s.text}</p>
-              <p className="font-semibold text-forest">— {s.author}</p>
+            <div className="relative max-w-4xl mx-auto">
+              <div className="absolute inset-0 rounded-2xl blur-2xl bg-emerald-200/40" />
+              <div className="relative p-8 md:p-10 bg-white rounded-2xl shadow-xl border border-emerald-50 text-center transition hover:-translate-y-1 duration-300">
+                <div className="mx-auto w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-2xl mb-4">
+                  “
+                </div>
+                <p className="text-softgray italic text-lg leading-relaxed mb-6">
+                  {s.text}
+                </p>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="font-semibold text-forest">{s.author}</span>
+                  <span className="text-xs px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                    {s.tag}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         ))}

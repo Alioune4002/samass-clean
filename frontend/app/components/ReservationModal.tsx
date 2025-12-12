@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createBooking, getAvailabilities, getServices } from "../../lib/api";
 import { Availability, Service } from "@/lib/types";
+import Skeleton from "./ui/Skeleton";
 
 const timeOptions: Intl.DateTimeFormatOptions = {
   hour: "2-digit",
@@ -62,6 +63,8 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   
@@ -81,6 +84,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
 
     async function load() {
       try {
+        setLoadingServices(true);
         const data = await getServices();
         setServices(data);
 
@@ -97,6 +101,8 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
         await refreshAvailableDates();
       } catch (e) {
         console.error(e);
+      } finally {
+        setLoadingServices(false);
       }
     }
     resetState();
@@ -136,6 +142,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
     setSelectedDate(date);
     setSelectedSlot(null);
     setApiError(null);
+    setLoadingSlots(true);
 
     try {
       const data = await getAvailabilities();
@@ -178,6 +185,8 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
     } catch (e) {
       console.error(e);
       setApiError("Impossible de charger les créneaux.");
+    } finally {
+      setLoadingSlots(false);
     }
   }
 
@@ -298,6 +307,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
           services={services}
           selectedService={selectedService}
           selectedDuration={selectedDuration}
+          loading={loadingServices}
         onSelect={(s, duration) => {
           setSelectedService(s);
           setSelectedDuration(duration);
@@ -314,7 +324,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
               days={availableDates.length ? availableDates : days}
               selectedDate={selectedDate}
               onSelect={handleSelectDate}
-              loading={false}
+              loading={loadingSlots}
             />
           )}
 
@@ -322,6 +332,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
             <StepSlot
               slots={timeSlots}
               selectedSlot={selectedSlot}
+              loading={loadingSlots}
               onSelect={setSelectedSlot}
             />
           )}
@@ -411,6 +422,7 @@ type StepServiceProps = {
   services: Service[];
   selectedService: Service | null;
   selectedDuration: number | null;
+  loading: boolean;
   onSelect: (s: Service, duration: number | null) => void;
 };
 
@@ -418,8 +430,27 @@ function StepService({
   services,
   selectedService,
   selectedDuration,
+  loading,
   onSelect,
 }: StepServiceProps) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="border rounded-2xl px-4 py-3 border-gray-100"
+          >
+            <Skeleton className="h-5 w-1/2 mb-3" />
+            <Skeleton className="h-4 w-full mb-2" />
+            <Skeleton className="h-4 w-5/6 mb-2" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (!services.length) {
     return (
       <p className="text-sm text-gray-500">
@@ -550,10 +581,24 @@ function StepDate({
 type StepSlotProps = {
   slots: { availabilityId: number; start: string }[];
   selectedSlot: { availabilityId: number; start: string } | null;
+  loading?: boolean;
   onSelect: (s: { availabilityId: number; start: string }) => void;
 };
 
-function StepSlot({ slots, selectedSlot, onSelect }: StepSlotProps) {
+function StepSlot({ slots, selectedSlot, onSelect, loading }: StepSlotProps) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <p className="text-xs text-gray-500 mb-1">Recherche des créneaux…</p>
+        <div className="flex flex-wrap gap-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-9 w-16 rounded-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (!slots.length) {
     return (
       <div className="space-y-3">
