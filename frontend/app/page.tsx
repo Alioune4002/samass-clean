@@ -28,8 +28,6 @@ export default function HomePage() {
     load();
   }, []);
 
-  if (loading) return <p className="text-center py-20">Chargement…</p>;
-
   return (
     <div>
       <section className="relative bg-pastel pt-32 pb-20">
@@ -84,22 +82,45 @@ export default function HomePage() {
       </section>
 
       <section className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((s) => (
-            <CardService
-              key={s.id}
-              title={s.title}
-              description={s.description}
-              formulas={Object.entries(s.durations_prices).map(
-                ([duration, price]) => ({
-                  duration: duration + " min",
-                  price,
-                })
-              )}
-              serviceId={s.id}
-            />
-          ))}
-        </div>
+        {loading && (
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="animate-pulse rounded-2xl border border-emerald-50 bg-white p-4 shadow-sm"
+              >
+                <div className="h-6 bg-emerald-100 rounded w-1/2 mb-3" />
+                <div className="h-4 bg-emerald-50 rounded w-full mb-2" />
+                <div className="h-4 bg-emerald-50 rounded w-5/6 mb-2" />
+                <div className="h-4 bg-emerald-50 rounded w-2/3" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && (
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+            {services.map((s) => (
+              <CardService
+                key={s.id}
+                title={s.title}
+                description={s.description}
+                formulas={Object.entries(s.durations_prices).map(
+                  ([duration, price]) => ({
+                    duration: duration + " min",
+                    price,
+                  })
+                )}
+                serviceId={s.id}
+              />
+            ))}
+            {!services.length && (
+              <p className="text-gray-500 text-center col-span-full">
+                Aucun service n&apos;est disponible pour le moment.
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="max-w-6xl mx-auto px-6 py-12 bg-white border border-emerald-50 rounded-3xl shadow-sm">

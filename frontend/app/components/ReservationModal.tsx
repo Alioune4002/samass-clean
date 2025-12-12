@@ -23,6 +23,11 @@ const toLocalDate = (iso: string) => {
   return new Date(year, month - 1, day, hour, minute);
 };
 
+const formatLocalISO = (d: Date) => {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+};
+
 const formatTime = (iso: string) => {
   return toLocalDate(iso).toLocaleTimeString("fr-FR", timeOptions);
 };
@@ -134,6 +139,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
 
     try {
       const data = await getAvailabilities();
+      const now = new Date();
       const filtered = data
         .filter((a) => a.start_datetime.slice(0, 10) === date)
         .filter((a) => {
@@ -141,7 +147,11 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
             (new Date(a.end_datetime).getTime() -
               new Date(a.start_datetime).getTime()) /
             60000;
-          return !a.is_booked && selectedDuration <= slotMinutes;
+          return (
+            !a.is_booked &&
+            selectedDuration <= slotMinutes &&
+            new Date(a.end_datetime) > now
+          );
         });
       setAvailabilities(filtered);
 
@@ -159,7 +169,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
         ) {
           generatedSlots.push({
             availabilityId: a.id,
-            start: cursor.toISOString(),
+            start: formatLocalISO(cursor),
           });
           cursor = new Date(cursor.getTime() + stepMinutes * 60000);
         }
@@ -174,10 +184,12 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
   async function refreshAvailableDates() {
     try {
       const data = await getAvailabilities();
+      const now = new Date();
       const unique = Array.from(
         new Set(
           data
             .filter((a) => !a.is_booked)
+            .filter((a) => new Date(a.end_datetime) > now)
             .map((a) => a.start_datetime.slice(0, 10))
         )
       ).sort();

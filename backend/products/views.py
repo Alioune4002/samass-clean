@@ -70,6 +70,7 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         date_param = self.request.query_params.get("date")
+        qs = qs.filter(end_datetime__gte=timezone.now())
 
         if date_param:
             qs = qs.filter(start_datetime__date=date_param, is_booked=False)
@@ -137,6 +138,10 @@ class BookingViewSet(viewsets.ModelViewSet):
                 if start_datetime_raw
                 else None
             )
+            if start_override and settings.USE_TZ and start_override.tzinfo is None:
+                start_override = timezone.make_aware(
+                    start_override, timezone.get_default_timezone()
+                )
         except Exception:
             return Response({"error": "Format de date invalide."}, status=400)
 
