@@ -62,6 +62,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
+  const [clientComment, setClientComment] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -231,6 +232,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
         client_name: clientName,
         client_email: clientEmail,
         client_phone: clientPhone,
+        client_comment: clientComment,
         serviceId: selectedService.id,
         availabilityId: selectedSlot.availabilityId,
         durationMinutes: selectedDuration,
@@ -338,17 +340,19 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
           )}
 
           {step === 4 && (
-            <StepClient
-              service={selectedService}
-              slot={selectedSlot}
-              duration={selectedDuration}
-              clientName={clientName}
-              clientEmail={clientEmail}
-              clientPhone={clientPhone}
-              setClientName={setClientName}
-              setClientEmail={setClientEmail}
-              setClientPhone={setClientPhone}
-            />
+          <StepClient
+            service={selectedService}
+            slot={selectedSlot}
+            duration={selectedDuration}
+            clientName={clientName}
+            clientEmail={clientEmail}
+            clientPhone={clientPhone}
+            clientComment={clientComment}
+            setClientName={setClientName}
+            setClientEmail={setClientEmail}
+            setClientPhone={setClientPhone}
+            setClientComment={setClientComment}
+          />
           )}
 
           {step === 5 && (
@@ -656,9 +660,11 @@ type StepClientProps = {
   clientName: string;
   clientEmail: string;
   clientPhone: string;
+  clientComment: string;
   setClientName: (v: string) => void;
   setClientEmail: (v: string) => void;
   setClientPhone: (v: string) => void;
+  setClientComment: (v: string) => void;
 };
 
 function StepClient({
@@ -668,9 +674,11 @@ function StepClient({
   clientName,
   clientEmail,
   clientPhone,
+  clientComment,
   setClientName,
   setClientEmail,
   setClientPhone,
+  setClientComment,
 }: StepClientProps) {
   return (
     <div className="space-y-4">
@@ -713,6 +721,14 @@ function StepClient({
           placeholder="Téléphone (optionnel)"
           value={clientPhone}
           onChange={(e) => setClientPhone(e.target.value)}
+          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900"
+        />
+        <textarea
+          name="client_comment"
+          placeholder="Commentaire / remarques (optionnel)"
+          value={clientComment}
+          onChange={(e) => setClientComment(e.target.value)}
+          rows={3}
           className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-900"
         />
         <p className="text-[11px] text-gray-400">

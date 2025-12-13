@@ -35,6 +35,7 @@ class BookingSerializer(serializers.ModelSerializer):
         write_only=True
     )
     duration_minutes = serializers.IntegerField(min_value=1)
+    client_comment = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = Booking
@@ -43,6 +44,7 @@ class BookingSerializer(serializers.ModelSerializer):
             "client_name",
             "client_email",
             "client_phone",
+            "client_comment",
             "availability",
             "service",
             "service_id",

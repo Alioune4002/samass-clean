@@ -17,6 +17,10 @@ export default function AdminBookingsPage() {
         setLoading(true);
         const data = await adminGetBookings();
         setBookings(data);
+        // Met à jour les pastilles (pending)
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("admin-badges-refresh"));
+        }
       } catch (err) {
         console.error("Erreur chargement réservations:", err);
       } finally {

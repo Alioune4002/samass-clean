@@ -53,6 +53,7 @@ export async function createBooking(data: {
   client_name: string;
   client_email: string;
   client_phone?: string;
+  client_comment?: string;
   availabilityId: number;
   serviceId: number;
   durationMinutes: number;
@@ -64,6 +65,7 @@ export async function createBooking(data: {
       client_name: data.client_name,
       client_email: data.client_email,
       client_phone: data.client_phone,
+      client_comment: data.client_comment,
       service_id: data.serviceId,
       availability_id: data.availabilityId,
       duration_minutes: data.durationMinutes,

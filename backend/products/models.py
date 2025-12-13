@@ -41,6 +41,7 @@ class Booking(models.Model):
     client_name = models.CharField(max_length=255)
     client_email = models.EmailField()
     client_phone = models.CharField(max_length=50, blank=True)
+    client_comment = models.TextField(blank=True)
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
 

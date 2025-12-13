@@ -55,28 +55,41 @@ def render_email(title: str, paragraphs: list[str]) -> str:
 
 def send_email(to_emails, subject: str, text: str, html: str | None = None):
     """
-    Envoi via l'API SendGrid (plus fiable que SMTP sur Render).
+    Envoi via l'API SendGrid si la clé est présente, sinon fallback SMTP (EmailBackend).
     """
+    api_key = os.environ.get("SENDGRID_API_KEY")
+    if api_key:
+        try:
+            from sendgrid import SendGridAPIClient
+            from sendgrid.helpers.mail import Mail
+
+            message = Mail(
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to_emails=to_emails,
+                subject=subject,
+                plain_text_content=text,
+                html_content=html or text,
+            )
+            sg = SendGridAPIClient(api_key)
+            sg.send(message)
+            return True
+        except Exception as exc:
+            logger.warning(f"SendGrid API error: {exc}")
+
+    # Fallback SMTP (Gmail ou autre backend configuré)
     try:
-        from sendgrid import SendGridAPIClient
-        from sendgrid.helpers.mail import Mail
-
-        api_key = os.environ.get("SENDGRID_API_KEY")
-        if not api_key:
-            raise RuntimeError("SENDGRID_API_KEY manquant")
-
-        message = Mail(
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            to_emails=to_emails,
+        mail = EmailMultiAlternatives(
             subject=subject,
-            plain_text_content=text,
-            html_content=html or text,
+            body=text,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=to_emails if isinstance(to_emails, list) else [to_emails],
         )
-        sg = SendGridAPIClient(api_key)
-        sg.send(message)
+        if html:
+            mail.attach_alternative(html, "text/html")
+        mail.send()
         return True
     except Exception as exc:
-        logger.warning(f"SendGrid API error: {exc}")
+        logger.warning(f"SMTP fallback error: {exc}")
         return False
 
 
@@ -151,6 +164,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         name = data.get("client_name")
         email = data.get("client_email")
         phone = data.get("client_phone", "")
+        comment = data.get("client_comment", "")
 
         if not all([service_id, availability_id, name, email, duration_minutes]):
             return Response({"error": "Champs manquants."}, status=400)
@@ -249,6 +263,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                     client_name=name,
                     client_email=email,
                     client_phone=phone,
+                    client_comment=comment or "",
                     duration_minutes=duration_value,
                     status="pending",
                 )
@@ -298,6 +313,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                         f"<strong>Service :</strong> {service.title}",
                         f"<strong>Durée :</strong> {duration_value} min",
                         f"<strong>Créneau :</strong> {local_start.strftime('%d/%m/%Y %H:%M')} → {local_end.strftime('%H:%M')}",
+                        f"<strong>Commentaire :</strong> {comment or '—'}",
                         f"<a href='{ADMIN_PORTAL_URL}' style='color:#047857;'>Ouvrir l’espace admin</a>",
                     ],
                 )

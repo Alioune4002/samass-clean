@@ -25,6 +25,7 @@ export type Booking = {
   client_name: string;
   client_email: string;
   client_phone: string;
+  client_comment?: string;
   status: BookingStatus;
   created_at: string;
   updated_at: string;

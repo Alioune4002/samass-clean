@@ -79,9 +79,12 @@ export default function AdminMessagesPage() {
                   <button
                     onClick={() =>
                       adminDeleteMessage(m.id)
-                        .then(() =>
-                          setMessages((prev) => prev.filter((x) => x.id !== m.id))
-                        )
+                        .then(() => {
+                          setMessages((prev) => prev.filter((x) => x.id !== m.id));
+                          if (typeof window !== "undefined") {
+                            window.dispatchEvent(new Event("admin-badges-refresh"));
+                          }
+                        })
                         .catch((err) =>
                           console.error("Suppression message impossible :", err)
                         )
