@@ -8,6 +8,7 @@ import {
   adminDeleteAvailability,
   adminUpdateAvailability,
 } from "@/lib/adminApi";
+import { isBackendFallbackMode } from "@/lib/backendFallback";
 import { Availability } from "@/lib/types";
 import Skeleton from "@/app/components/ui/Skeleton";
 
@@ -20,10 +21,12 @@ export default function AdminAvailabilityPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editStart, setEditStart] = useState("");
   const [editEnd, setEditEnd] = useState("");
+  const [localMode, setLocalMode] = useState(false);
 
   const loadData = async () => {
     try {
       const avs = await adminGetAvailabilities();
+      setLocalMode(isBackendFallbackMode());
       setAvailabilities(
         avs.sort(
           (a, b) =>
@@ -80,6 +83,12 @@ export default function AdminAvailabilityPage() {
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 text-white">
       <h1 className="text-3xl font-bold mb-6">Gestion des Disponibilités</h1>
+      {localMode && (
+        <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          Mode local actif : les disponibilites sont enregistrees dans ce
+          navigateur tant que le backend est indisponible.
+        </div>
+      )}
       <p className="text-sm text-gray-300 mb-4">
         Ajoutez des créneaux horaires (début/fin). Un créneau réservé bloque
         toute la plage. Vous pouvez modifier ou supprimer chaque créneau.

@@ -1,32 +1,30 @@
+import {
+  BackendUnavailableError,
+  ManualReservationRequiredError,
+  isBackendUnavailableError,
+  requestJson,
+} from "./backendFallback";
+import {
+  createLocalAvailability,
+  deleteLocalAvailability,
+  getLocalAvailabilities,
+  getLocalServices,
+  saveLocalAvailabilities,
+  saveLocalServices,
+} from "./fallbackStore";
 import { Availability, Booking, Service } from "./types";
 
-const rawBase =
-  process.env.NEXT_PUBLIC_API_URL || "https://samass-massage.onrender.com/api";
-const normalized = rawBase.replace(/\/$/, "");
-export const API_BASE = normalized.endsWith("/api")
-  ? normalized
-  : `${normalized}/api`;
-
-async function apiFetch<T>(path: string, options: RequestInit = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    cache: options.cache ?? "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-
-  if (!res.ok) {
-    const message = await res.text();
-    throw new Error(message || `Erreur API ${res.status}`);
-  }
-
-  return res.json() as Promise<T>;
-}
-
 export async function getServices(): Promise<Service[]> {
-  return apiFetch<Service[]>("/services/");
+  try {
+    const services = await requestJson<Service[]>("/services/");
+    saveLocalServices(services);
+    return services;
+  } catch (error) {
+    if (isBackendUnavailableError(error)) {
+      return getLocalServices();
+    }
+    throw error;
+  }
 }
 
 export async function createAvailability(data: {
@@ -34,19 +32,42 @@ export async function createAvailability(data: {
   start_datetime: string;
   end_datetime: string;
 }) {
-  return apiFetch<Availability>("/availabilities/", {
-    method: "POST",
-    body: JSON.stringify({
-      service_id: data.serviceId,
-      start_datetime: data.start_datetime,
-      end_datetime: data.end_datetime,
-    }),
-  });
+  try {
+    const availability = await requestJson<Availability>("/availabilities/", {
+      method: "POST",
+      body: JSON.stringify({
+        service_id: data.serviceId,
+        start_datetime: data.start_datetime,
+        end_datetime: data.end_datetime,
+      }),
+    });
+    saveLocalAvailabilities([
+      ...getLocalAvailabilities().filter((item) => item.id !== availability.id),
+      availability,
+    ]);
+    return availability;
+  } catch (error) {
+    if (isBackendUnavailableError(error)) {
+      return createLocalAvailability({
+        start_datetime: data.start_datetime,
+        end_datetime: data.end_datetime,
+      });
+    }
+    throw error;
+  }
 }
 
 export async function getAvailabilities(_date?: string) {
-  // On récupère toutes les disponibilités et on filtre côté client si besoin.
-  return apiFetch<Availability[]>(`/availabilities/`);
+  try {
+    const availabilities = await requestJson<Availability[]>(`/availabilities/`);
+    saveLocalAvailabilities(availabilities);
+    return availabilities;
+  } catch (error) {
+    if (isBackendUnavailableError(error)) {
+      return getLocalAvailabilities();
+    }
+    throw error;
+  }
 }
 
 export async function createBooking(data: {
@@ -59,19 +80,26 @@ export async function createBooking(data: {
   durationMinutes: number;
   startDateTime: string;
 }): Promise<Booking> {
-  return apiFetch<Booking>("/bookings/", {
-    method: "POST",
-    body: JSON.stringify({
-      client_name: data.client_name,
-      client_email: data.client_email,
-      client_phone: data.client_phone,
-      client_comment: data.client_comment,
-      service_id: data.serviceId,
-      availability_id: data.availabilityId,
-      duration_minutes: data.durationMinutes,
-      start_datetime: data.startDateTime,
-    }),
-  });
+  try {
+    return await requestJson<Booking>("/bookings/", {
+      method: "POST",
+      body: JSON.stringify({
+        client_name: data.client_name,
+        client_email: data.client_email,
+        client_phone: data.client_phone,
+        client_comment: data.client_comment,
+        service_id: data.serviceId,
+        availability_id: data.availabilityId,
+        duration_minutes: data.durationMinutes,
+        start_datetime: data.startDateTime,
+      }),
+    });
+  } catch (error) {
+    if (isBackendUnavailableError(error)) {
+      throw new ManualReservationRequiredError();
+    }
+    throw error;
+  }
 }
 
 export async function submitContactForm(data: {
@@ -80,14 +108,31 @@ export async function submitContactForm(data: {
   phone?: string;
   message: string;
 }) {
-  return apiFetch<{ message: string }>("/contact/", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+  try {
+    return await requestJson<{ message: string }>("/contact/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  } catch (error) {
+    if (error instanceof BackendUnavailableError) {
+      throw new Error(
+        "Le formulaire est momentanement indisponible. Merci de contacter SAMASS par telephone, WhatsApp ou Facebook."
+      );
+    }
+    throw error;
+  }
 }
 
 export async function deleteAvailability(id: number) {
-  return apiFetch<{ message: string }>(`/availabilities/${id}/`, {
-    method: "DELETE",
-  });
+  try {
+    return await requestJson<{ message: string }>(`/availabilities/${id}/`, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    if (isBackendUnavailableError(error)) {
+      deleteLocalAvailability(id);
+      return { message: "Disponibilite supprimee localement." };
+    }
+    throw error;
+  }
 }

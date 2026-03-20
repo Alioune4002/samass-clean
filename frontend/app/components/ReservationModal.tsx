@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+  ManualReservationRequiredError,
+  isBackendFallbackMode,
+} from "../../lib/backendFallback";
+import { FALLBACK_STORAGE_KEYS } from "../../lib/fallbackData";
 import { createBooking, getAvailabilities, getServices } from "../../lib/api";
 import { Availability, Service } from "@/lib/types";
 import Skeleton from "./ui/Skeleton";
@@ -15,6 +20,14 @@ const dateOptions: Intl.DateTimeFormatOptions = {
   weekday: "long",
   day: "2-digit",
   month: "long",
+};
+
+const MANUAL_DATE_VALUE = "manual-request";
+const MANUAL_SLOT = {
+  availabilityId: -1,
+  start: "",
+  manualOnly: true,
+  label: "Horaire a convenir avec Sam",
 };
 
 const toLocalDate = (iso: string) => {
@@ -36,10 +49,21 @@ const formatTime = (iso: string) => {
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  initialServiceId?: number | null; 
+  initialServiceId?: number | null;
 };
 
-export default function ReservationModal({ isOpen, onClose, initialServiceId }: Props) {
+type ReservationSlot = {
+  availabilityId: number;
+  start: string;
+  manualOnly?: boolean;
+  label?: string;
+};
+
+export default function ReservationModal({
+  isOpen,
+  onClose,
+  initialServiceId,
+}: Props) {
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [services, setServices] = useState<Service[]>([]);
@@ -48,13 +72,10 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
 
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
-  const [timeSlots, setTimeSlots] = useState<
-    { availabilityId: number; start: string }[]
-  >([]);
-  const [selectedSlot, setSelectedSlot] = useState<{
-    availabilityId: number;
-    start: string;
-  } | null>(null);
+  const [timeSlots, setTimeSlots] = useState<ReservationSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<ReservationSlot | null>(
+    null
+  );
   const [availableDates, setAvailableDates] = useState<
     { value: string; label: string }[]
   >([]);
@@ -67,6 +88,9 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [completionMode, setCompletionMode] = useState<"online" | "manual">(
+    "online"
+  );
 
   
   useEffect(() => {
@@ -78,8 +102,43 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
 
-  
-  
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") return;
+
+    try {
+      const raw = window.sessionStorage.getItem(
+        FALLBACK_STORAGE_KEYS.reservationDraft
+      );
+      if (!raw) return;
+      const draft = JSON.parse(raw) as {
+        clientName?: string;
+        clientEmail?: string;
+        clientPhone?: string;
+        clientComment?: string;
+      };
+      setClientName(draft.clientName || "");
+      setClientEmail(draft.clientEmail || "");
+      setClientPhone(draft.clientPhone || "");
+      setClientComment(draft.clientComment || "");
+    } catch {
+      // Ignore un brouillon invalide.
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") return;
+
+    window.sessionStorage.setItem(
+      FALLBACK_STORAGE_KEYS.reservationDraft,
+      JSON.stringify({
+        clientName,
+        clientEmail,
+        clientPhone,
+        clientComment,
+      })
+    );
+  }, [clientComment, clientEmail, clientName, clientPhone, isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -119,10 +178,8 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
     setAvailabilities([]);
     setTimeSlots([]);
     setSelectedSlot(null);
-    setClientName("");
-    setClientEmail("");
-    setClientPhone("");
     setApiError(null);
+    setCompletionMode("online");
   }
 
   
@@ -143,6 +200,14 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
     setSelectedDate(date);
     setSelectedSlot(null);
     setApiError(null);
+
+    if (date === MANUAL_DATE_VALUE) {
+      setAvailabilities([]);
+      setTimeSlots([MANUAL_SLOT]);
+      setSelectedSlot(MANUAL_SLOT);
+      return;
+    }
+
     setLoadingSlots(true);
 
     try {
@@ -163,7 +228,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
         });
       setAvailabilities(filtered);
 
-      const generatedSlots: { availabilityId: number; start: string }[] = [];
+      const generatedSlots: ReservationSlot[] = [];
       filtered.forEach((a) => {
         const start = toLocalDate(a.start_datetime);
         const end = toLocalDate(a.end_datetime);
@@ -182,6 +247,11 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
           cursor = new Date(cursor.getTime() + stepMinutes * 60000);
         }
       });
+
+      if (!generatedSlots.length && isBackendFallbackMode()) {
+        generatedSlots.push(MANUAL_SLOT);
+      }
+
       setTimeSlots(generatedSlots);
     } catch (e) {
       console.error(e);
@@ -211,6 +281,20 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
           month: "short",
         }),
       }));
+
+      if (!mapped.length && isBackendFallbackMode()) {
+        setAvailableDates([
+          {
+            value: MANUAL_DATE_VALUE,
+            label: "Demande manuelle",
+          },
+        ]);
+        setSelectedDate(MANUAL_DATE_VALUE);
+        setTimeSlots([MANUAL_SLOT]);
+        setSelectedSlot(MANUAL_SLOT);
+        return;
+      }
+
       setAvailableDates(mapped);
       if (!selectedDate && mapped.length) {
         setSelectedDate(mapped[0].value);
@@ -218,6 +302,18 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
       }
     } catch (e) {
       console.error(e);
+      if (isBackendFallbackMode()) {
+        setAvailableDates([
+          {
+            value: MANUAL_DATE_VALUE,
+            label: "Demande manuelle",
+          },
+        ]);
+        setSelectedDate(MANUAL_DATE_VALUE);
+        setTimeSlots([MANUAL_SLOT]);
+        setSelectedSlot(MANUAL_SLOT);
+        return;
+      }
       setAvailableDates(days);
     }
   }
@@ -228,6 +324,12 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
     setApiError(null);
 
     try {
+      if (selectedSlot.manualOnly) {
+        setCompletionMode("manual");
+        setStep(5);
+        return;
+      }
+
       await createBooking({
         client_name: clientName,
         client_email: clientEmail,
@@ -238,10 +340,17 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
         durationMinutes: selectedDuration,
         startDateTime: selectedSlot.start,
       });
+      setCompletionMode("online");
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(FALLBACK_STORAGE_KEYS.reservationDraft);
+      }
       setStep(5);
     } catch (err: any) {
       const msg = err?.message || "Erreur lors de la réservation.";
-      if (msg.includes("trop court") || msg.includes("Durée supérieure")) {
+      if (err instanceof ManualReservationRequiredError) {
+        setCompletionMode("manual");
+        setStep(5);
+      } else if (msg.includes("trop court") || msg.includes("Durée supérieure")) {
         setApiError(
           "Ce créneau est déjà partiellement pris. Choisissez un autre horaire ou contactez Sam."
         );
@@ -279,7 +388,7 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
               {step === 2 && "Choisissez une date"}
               {step === 3 && "Choisissez un créneau"}
               {step === 4 && "Vos coordonnées"}
-              {step === 5 && "C’est réservé ✨"}
+              {step === 5 && "Votre demande"}
             </h2>
           </div>
           <button
@@ -358,13 +467,31 @@ export default function ReservationModal({ isOpen, onClose, initialServiceId }: 
           {step === 5 && (
             <div className="text-center space-y-4 py-4">
               <p className="text-lg font-semibold text-gray-900">
-                Demande envoyée 🙏
+                {completionMode === "online"
+                  ? "Demande envoyee"
+                  : "Reservation en mode secours"}
               </p>
-              <p className="text-gray-600 text-sm">
-                Vous recevrez un email de confirmation ou de refus. Si vous n&apos;avez pas de réponse
-                au plus tard 2h avant l&apos;horaire choisi, considérez la demande annulée.
-                Pensez à vérifier vos spams pour être sûr de recevoir les emails.
-              </p>
+              {completionMode === "online" ? (
+                <p className="text-gray-600 text-sm">
+                  Vous recevrez un email de confirmation ou de refus. Si vous n&apos;avez pas de reponse
+                  au plus tard 2h avant l&apos;horaire choisi, considerez la demande annulee.
+                  Pensez a verifier vos spams pour etre sur de recevoir les emails.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-gray-600 text-sm">
+                    La reservation en ligne est momentanement indisponible.
+                    Merci de contacter SAMASS via la page Contact, par email ou
+                    par telephone pour finaliser votre demande.
+                  </p>
+                  <Link
+                    href="/contact"
+                    className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 transition"
+                  >
+                    Aller a la page Contact
+                  </Link>
+                </div>
+              )}
               <button
                 onClick={onClose}
                 className="mt-2 w-full rounded-full bg-gray-900 text-white py-2.5 text-sm font-medium hover:bg-black transition"
@@ -583,10 +710,10 @@ function StepDate({
 }
 
 type StepSlotProps = {
-  slots: { availabilityId: number; start: string }[];
-  selectedSlot: { availabilityId: number; start: string } | null;
+  slots: ReservationSlot[];
+  selectedSlot: ReservationSlot | null;
   loading?: boolean;
-  onSelect: (s: { availabilityId: number; start: string }) => void;
+  onSelect: (s: ReservationSlot) => void;
 };
 
 function StepSlot({ slots, selectedSlot, onSelect, loading }: StepSlotProps) {
@@ -632,7 +759,7 @@ function StepSlot({ slots, selectedSlot, onSelect, loading }: StepSlotProps) {
           const isActive =
             selectedSlot?.availabilityId === slot.availabilityId &&
             selectedSlot.start === slot.start;
-          const label = formatTime(slot.start);
+          const label = slot.manualOnly ? slot.label : formatTime(slot.start);
           return (
             <button
               key={`${slot.availabilityId}-${idx}`}
@@ -655,7 +782,7 @@ function StepSlot({ slots, selectedSlot, onSelect, loading }: StepSlotProps) {
 
 type StepClientProps = {
   service: Service | null;
-  slot: { availabilityId: number; start: string } | null;
+  slot: ReservationSlot | null;
   duration: number | null;
   clientName: string;
   clientEmail: string;
@@ -685,13 +812,14 @@ function StepClient({
       {service && slot && (
         <div className="rounded-2xl bg-gray-50 border border-gray-200 p-3 text-xs text-gray-700">
           <p className="font-medium text-gray-900 mb-1">{service.title}</p>
-          <p>
-            {new Date(slot.start).toLocaleDateString(
-              "fr-FR",
-              dateOptions
-            )}{" "}
-            à {formatTime(slot.start)}
-          </p>
+          {slot.manualOnly ? (
+            <p>{slot.label || "Horaire a convenir avec Sam"}</p>
+          ) : (
+            <p>
+              {new Date(slot.start).toLocaleDateString("fr-FR", dateOptions)} a{" "}
+              {formatTime(slot.start)}
+            </p>
+          )}
           {duration && (
             <p className="mt-1">Durée choisie : {duration} min</p>
           )}

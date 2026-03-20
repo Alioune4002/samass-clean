@@ -7,6 +7,7 @@ import {
   adminDeleteService,
   adminUpdateService,
 } from "@/lib/adminApi";
+import { isBackendFallbackMode } from "@/lib/backendFallback";
 import { Service } from "@/lib/types";
 import Skeleton from "@/app/components/ui/Skeleton";
 
@@ -14,6 +15,7 @@ export default function AdminServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [localMode, setLocalMode] = useState(false);
 
   /* ------------------------------
      FORMULAIRE AVEC MULTI TARIFS
@@ -36,6 +38,7 @@ export default function AdminServicesPage() {
       setLoading(true);
       const data = await adminGetServices();
       setServices(data);
+      setLocalMode(isBackendFallbackMode());
     } catch (err) {
       console.error("Erreur adminGetServices :", err);
     } finally {
@@ -152,6 +155,13 @@ export default function AdminServicesPage() {
   return (
     <div className="max-w-3xl mx-auto p-6 text-white">
       <h1 className="text-3xl font-bold mb-6">Gestion des Services</h1>
+
+      {localMode && (
+        <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          Mode local actif : les services sont actuellement geres dans ce
+          navigateur et seront utilises si le backend reste indisponible.
+        </div>
+      )}
 
       {/* FORMULAIRE AJOUT SERVICE */}
       <div className="border border-gray-700 p-4 rounded mb-8 bg-[#1A1A1A] shadow">
