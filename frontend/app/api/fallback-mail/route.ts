@@ -176,7 +176,7 @@ function buildMessages(payload: FallbackMailPayload) {
         ]),
       },
       successMessage:
-        "Votre demande a bien été transmise en mode secours. Sam vous recontactera rapidement.",
+        "Votre demande a bien été envoyée. Sam vous recontactera rapidement.",
     };
   }
 
@@ -235,7 +235,7 @@ function buildMessages(payload: FallbackMailPayload) {
       ]),
     },
     successMessage:
-      "Votre message a bien été reçu en mode secours. Sam vous répondra rapidement.",
+      "Votre message a bien été reçu. Sam vous répondra rapidement.",
   };
 }
 

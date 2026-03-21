@@ -48,7 +48,7 @@ async function sendFallbackMail(payload: Record<string, unknown>) {
   return {
     message:
       data.message ||
-      "Votre demande a bien ete transmise en mode secours. Sam vous recontactera rapidement.",
+      "Votre demande a bien ete envoyee. Sam vous recontactera rapidement.",
     mode: "fallback" as const,
   };
 }

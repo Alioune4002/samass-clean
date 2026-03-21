@@ -495,7 +495,7 @@ export default function ReservationModal({
               <p className="text-lg font-semibold text-gray-900">
                 {completionMode === "online"
                   ? "Demande envoyee"
-                  : "Demande transmise en mode secours"}
+                  : "Demande recue"}
               </p>
               {completionMode === "online" ? (
                 <p className="text-gray-600 text-sm">
