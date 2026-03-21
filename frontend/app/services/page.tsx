@@ -56,6 +56,7 @@ export default function ServicesPage() {
                 key={s.id}
                 title={s.title}
                 description={s.description}
+                longDescription={s.long_description}
                 formulas={Object.entries(s.durations_prices).map(
                   ([duration, price]) => ({
                     duration: duration + " min",

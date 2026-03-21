@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getAdminPassword, startAdminSession } from "@/lib/adminAuth";
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -9,21 +10,23 @@ export default function AdminLogin() {
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState("");
 
-  const ADMIN_PASSWORD = "badou2004"; // mot de passe admin
-
   const handleLogin = (e: any) => {
     e.preventDefault();
+    const configuredPassword = getAdminPassword();
 
-    if (password !== ADMIN_PASSWORD) {
-      setError("Identifiants incorrects.");
+    if (!configuredPassword) {
+      setError(
+        "Le mot de passe admin local n'est pas configuré. Ajoutez NEXT_PUBLIC_ADMIN_PASSWORD."
+      );
       return;
     }
 
-    // Flag de connexion
-    localStorage.setItem("samass_admin_logged", "true");
-    document.cookie = "admin_token=ok; path=/; max-age=604800";
+    if (password !== configuredPassword) {
+      setError("Mot de passe incorrect.");
+      return;
+    }
 
-    // Redirection
+    startAdminSession();
     router.push("/admin-samass-98342/services");
   };
 

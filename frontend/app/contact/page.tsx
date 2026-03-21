@@ -15,19 +15,25 @@ export default function ContactPage() {
 
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
+  const [responseTone, setResponseTone] = useState<"success" | "error">(
+    "success"
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setResponse(null);
+    setResponseTone("success");
 
     try {
       const result = await submitContactForm(form);
-      setResponse("Message envoyé avec succès. Je vous répondrai très vite.");
+      setResponse(result.message);
+      setResponseTone("success");
       setForm({ name: "", email: "", phone: "", message: "" });
     } catch (err) {
       console.error(err);
       setResponse("Impossible d’envoyer le message pour le moment.");
+      setResponseTone("error");
     }
 
     setLoading(false);
@@ -185,7 +191,7 @@ export default function ContactPage() {
               {response && (
                 <p
                   className={`text-center font-medium mt-2 ${
-                    response.includes("succès") ? "text-emerald-700" : "text-red-600"
+                    responseTone === "success" ? "text-emerald-700" : "text-red-600"
                   }`}
                 >
                   {response}

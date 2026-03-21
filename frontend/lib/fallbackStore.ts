@@ -56,6 +56,7 @@ export function getLocalServices() {
 
   return stored.map((service) => ({
     ...service,
+    long_description: service.long_description ?? null,
     durations_prices: { ...service.durations_prices },
   }));
 }
@@ -65,6 +66,7 @@ export function saveLocalServices(services: Service[]) {
     FALLBACK_STORAGE_KEYS.services,
     services.map((service) => ({
       ...service,
+      long_description: service.long_description ?? null,
       durations_prices: { ...service.durations_prices },
     }))
   );
@@ -73,6 +75,7 @@ export function saveLocalServices(services: Service[]) {
 export function createLocalService(data: {
   title: string;
   description: string;
+  long_description?: string | null;
   durations_prices: Record<string, number>;
 }) {
   const services = getLocalServices();
@@ -80,6 +83,7 @@ export function createLocalService(data: {
     id: nextLocalId(services),
     title: data.title,
     description: data.description,
+    long_description: data.long_description ?? null,
     durations_prices: { ...data.durations_prices },
     image: null,
     is_active: true,
@@ -97,6 +101,10 @@ export function updateLocalService(id: number, data: Partial<Service>) {
       ? {
           ...service,
           ...data,
+          long_description:
+            data.long_description !== undefined
+              ? data.long_description
+              : service.long_description ?? null,
           durations_prices: data.durations_prices
             ? { ...data.durations_prices }
             : { ...service.durations_prices },
@@ -133,6 +141,7 @@ export function saveLocalAvailabilities(availabilities: Availability[]) {
 export function createLocalAvailability(data: {
   start_datetime: string;
   end_datetime: string;
+  service_id?: number | null;
 }) {
   const availabilities = getLocalAvailabilities();
   const now = new Date().toISOString();
@@ -141,6 +150,7 @@ export function createLocalAvailability(data: {
     start_datetime: data.start_datetime,
     end_datetime: data.end_datetime,
     is_booked: false,
+    service_id: data.service_id ?? null,
     created_at: now,
     updated_at: now,
   };
@@ -152,7 +162,9 @@ export function createLocalAvailability(data: {
 
 export function updateLocalAvailability(
   id: number,
-  data: Partial<Pick<Availability, "start_datetime" | "end_datetime" | "is_booked">>
+  data: Partial<
+    Pick<Availability, "start_datetime" | "end_datetime" | "is_booked" | "service_id">
+  >
 ) {
   const availabilities = getLocalAvailabilities();
   const now = new Date().toISOString();

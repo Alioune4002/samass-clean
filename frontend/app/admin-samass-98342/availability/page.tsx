@@ -7,13 +7,16 @@ import {
   adminCreateAvailability,
   adminDeleteAvailability,
   adminUpdateAvailability,
+  adminGetServices,
 } from "@/lib/adminApi";
 import { isBackendFallbackMode } from "@/lib/backendFallback";
-import { Availability } from "@/lib/types";
+import { Availability, Service } from "@/lib/types";
 import Skeleton from "@/app/components/ui/Skeleton";
 
 export default function AdminAvailabilityPage() {
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [manualDate, setManualDate] = useState("");
   const [manualStart, setManualStart] = useState("");
   const [manualEnd, setManualEnd] = useState("");
@@ -21,11 +24,19 @@ export default function AdminAvailabilityPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editStart, setEditStart] = useState("");
   const [editEnd, setEditEnd] = useState("");
+  const [editServiceId, setEditServiceId] = useState<number | null>(null);
   const [localMode, setLocalMode] = useState(false);
 
   const loadData = async () => {
     try {
-      const avs = await adminGetAvailabilities();
+      const [avs, serviceItems] = await Promise.all([
+        adminGetAvailabilities(),
+        adminGetServices(),
+      ]);
+      if (!selectedServiceId && serviceItems.length) {
+        setSelectedServiceId(serviceItems[0].id);
+      }
+      setServices(serviceItems);
       setLocalMode(isBackendFallbackMode());
       setAvailabilities(
         avs.sort(
@@ -96,7 +107,26 @@ export default function AdminAvailabilityPage() {
 
       <div className="mt-6 bg-[#1A1A1A] border border-gray-800 p-4 rounded">
         <h3 className="text-lg font-semibold mb-3">Ajouter un créneau</h3>
-        <div className="grid md:grid-cols-3 gap-3">
+        <div className="grid md:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-sm mb-1">Service</label>
+            <select
+              value={selectedServiceId ?? ""}
+              onChange={(e) =>
+                setSelectedServiceId(
+                  e.target.value ? Number(e.target.value) : null
+                )
+              }
+              className="w-full bg-[#0D0D0D] text-white p-2 rounded border border-gray-700"
+            >
+              {!localMode && <option value="">Tous les services</option>}
+              {services.map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.title}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-sm mb-1">Date</label>
             <input
@@ -131,10 +161,15 @@ export default function AdminAvailabilityPage() {
               alert("Merci de remplir date, heure début et heure fin.");
               return;
             }
+            if (localMode && !selectedServiceId) {
+              alert("En mode local, merci d'associer le créneau à un service.");
+              return;
+            }
             try {
               await adminCreateAvailability({
                 start_datetime: `${manualDate}T${manualStart}:00`,
                 end_datetime: `${manualDate}T${manualEnd}:00`,
+                service_id: selectedServiceId,
               });
               setManualDate("");
               setManualStart("");
@@ -180,6 +215,22 @@ export default function AdminAvailabilityPage() {
                 <div className="flex-1">
                   {editingId === a.id ? (
                     <div className="flex flex-col md:flex-row gap-2">
+                      <select
+                        value={String(editServiceId ?? "")}
+                        onChange={(e) =>
+                          setEditServiceId(
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        className="bg-[#0D0D0D] border border-gray-700 rounded px-2 py-1 text-white"
+                      >
+                        {!localMode && <option value="">Tous les services</option>}
+                        {services.map((service) => (
+                          <option key={service.id} value={service.id}>
+                            {service.title}
+                          </option>
+                        ))}
+                      </select>
                       <input
                         type="date"
                         value={editStart.split("T")[0] || a.start_datetime.slice(0, 10)}
@@ -214,9 +265,14 @@ export default function AdminAvailabilityPage() {
                       />
                     </div>
                   ) : (
-                    <p className="text-white">
-                      {formatDateTime(a.start_datetime)} → {formatTime(a.end_datetime)}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-white">
+                        {formatDateTime(a.start_datetime)} → {formatTime(a.end_datetime)}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {getServiceLabel(services, a.service_id)}
+                      </p>
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -225,13 +281,21 @@ export default function AdminAvailabilityPage() {
                       <button
                         onClick={async () => {
                           try {
+                            if (localMode && !editServiceId) {
+                              alert(
+                                "En mode local, merci d'associer le créneau à un service."
+                              );
+                              return;
+                            }
                             await adminUpdateAvailability(a.id, {
                               start_datetime: editStart || a.start_datetime,
                               end_datetime: editEnd || a.end_datetime,
+                              service_id: editServiceId,
                             });
                             setEditingId(null);
                             setEditStart("");
                             setEditEnd("");
+                            setEditServiceId(null);
                             loadData();
                           } catch (err) {
                             console.error(err);
@@ -247,6 +311,7 @@ export default function AdminAvailabilityPage() {
                           setEditingId(null);
                           setEditStart("");
                           setEditEnd("");
+                          setEditServiceId(null);
                         }}
                         className="text-sm px-3 py-1 rounded bg-gray-700"
                       >
@@ -260,6 +325,7 @@ export default function AdminAvailabilityPage() {
                           setEditingId(a.id);
                           setEditStart(a.start_datetime);
                           setEditEnd(a.end_datetime);
+                          setEditServiceId(a.service_id ?? null);
                         }}
                         className="text-sm px-3 py-1 rounded bg-gray-700"
                       >
@@ -290,6 +356,11 @@ export default function AdminAvailabilityPage() {
       </div>
     </div>
   );
+}
+
+function getServiceLabel(services: Service[], serviceId?: number | null) {
+  if (serviceId == null) return "Tous les services";
+  return services.find((service) => service.id === serviceId)?.title || "Service local";
 }
 
 function formatDateTime(iso: string) {

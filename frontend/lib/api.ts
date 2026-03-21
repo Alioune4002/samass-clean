@@ -1,6 +1,5 @@
 import {
   BackendUnavailableError,
-  ManualReservationRequiredError,
   isBackendUnavailableError,
   requestJson,
 } from "./backendFallback";
@@ -12,16 +11,58 @@ import {
   saveLocalAvailabilities,
   saveLocalServices,
 } from "./fallbackStore";
+import { enrichServicesForDisplay } from "./serviceCatalog";
 import { Availability, Booking, Service } from "./types";
+
+type BookingRequestResult =
+  | { mode: "online"; booking: Booking }
+  | { mode: "fallback"; message: string };
+
+type ContactRequestResult = {
+  mode: "online" | "fallback";
+  message: string;
+};
+
+async function sendFallbackMail(payload: Record<string, unknown>) {
+  const response = await fetch("/api/fallback-mail", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = (await response.json().catch(() => ({}))) as {
+    message?: string;
+    error?: string;
+    mode?: "fallback";
+  };
+
+  if (!response.ok) {
+    throw new Error(
+      data.error ||
+        "Le mode secours email est momentanement indisponible. Merci de contacter SAMASS directement."
+    );
+  }
+
+  return {
+    message:
+      data.message ||
+      "Votre demande a bien ete transmise en mode secours. Sam vous recontactera rapidement.",
+    mode: "fallback" as const,
+  };
+}
 
 export async function getServices(): Promise<Service[]> {
   try {
-    const services = await requestJson<Service[]>("/services/");
+    const services = enrichServicesForDisplay(
+      await requestJson<Service[]>("/services/")
+    );
     saveLocalServices(services);
     return services;
   } catch (error) {
     if (isBackendUnavailableError(error)) {
-      return getLocalServices();
+      return enrichServicesForDisplay(getLocalServices());
     }
     throw error;
   }
@@ -51,6 +92,7 @@ export async function createAvailability(data: {
       return createLocalAvailability({
         start_datetime: data.start_datetime,
         end_datetime: data.end_datetime,
+        service_id: data.serviceId,
       });
     }
     throw error;
@@ -77,11 +119,26 @@ export async function createBooking(data: {
   client_comment?: string;
   availabilityId: number;
   serviceId: number;
+  serviceTitle: string;
   durationMinutes: number;
   startDateTime: string;
-}): Promise<Booking> {
+  slotLabel?: string;
+}): Promise<BookingRequestResult> {
+  if (data.availabilityId < 0 || !data.startDateTime) {
+    return sendFallbackMail({
+      type: "booking",
+      client_name: data.client_name,
+      client_email: data.client_email,
+      client_phone: data.client_phone,
+      client_comment: data.client_comment,
+      service: data.serviceTitle,
+      duration_minutes: data.durationMinutes,
+      date_time: data.slotLabel || "A convenir avec Sam",
+    });
+  }
+
   try {
-    return await requestJson<Booking>("/bookings/", {
+    const booking = await requestJson<Booking>("/bookings/", {
       method: "POST",
       body: JSON.stringify({
         client_name: data.client_name,
@@ -94,9 +151,22 @@ export async function createBooking(data: {
         start_datetime: data.startDateTime,
       }),
     });
+    return {
+      mode: "online",
+      booking,
+    };
   } catch (error) {
     if (isBackendUnavailableError(error)) {
-      throw new ManualReservationRequiredError();
+      return sendFallbackMail({
+        type: "booking",
+        client_name: data.client_name,
+        client_email: data.client_email,
+        client_phone: data.client_phone,
+        client_comment: data.client_comment,
+        service: data.serviceTitle,
+        duration_minutes: data.durationMinutes,
+        date_time: data.slotLabel || "A convenir avec Sam",
+      });
     }
     throw error;
   }
@@ -107,17 +177,26 @@ export async function submitContactForm(data: {
   email: string;
   phone?: string;
   message: string;
-}) {
+}): Promise<ContactRequestResult> {
   try {
-    return await requestJson<{ message: string }>("/contact/", {
+    const result = await requestJson<{ message: string }>("/contact/", {
       method: "POST",
       body: JSON.stringify(data),
     });
+    return {
+      mode: "online",
+      message:
+        result.message || "Message envoyé avec succès. Je vous répondrai très vite.",
+    };
   } catch (error) {
     if (error instanceof BackendUnavailableError) {
-      throw new Error(
-        "Le formulaire est momentanement indisponible. Merci de contacter SAMASS par telephone, WhatsApp ou Facebook."
-      );
+      return sendFallbackMail({
+        type: "contact",
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        message: data.message,
+      });
     }
     throw error;
   }

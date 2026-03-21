@@ -1,23 +1,46 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "./sidebar";
 import "../globals.css";
+import { isAdminSessionActive } from "@/lib/adminAuth";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [authorized, setAuthorized] = useState(false);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    const logged = localStorage.getItem("samass_admin_logged");
-    const hasCookie =
-      typeof document !== "undefined" &&
-      document.cookie.includes("admin_token=");
-
-    if (logged !== "true" && !hasCookie) {
-      router.push("/admin-samass-98342/login");
+    if (pathname === "/admin-samass-98342/login") {
+      setAuthorized(true);
+      setChecked(true);
+      return;
     }
-  }, [router]);
+
+    const isAuthorized = isAdminSessionActive();
+    if (!isAuthorized) {
+      router.push("/admin-samass-98342/login");
+      setAuthorized(false);
+      setChecked(true);
+      return;
+    }
+    setAuthorized(true);
+    setChecked(true);
+  }, [pathname, router]);
+
+  if (!checked) {
+    return null;
+  }
+
+  if (!authorized) {
+    return null;
+  }
+
+  if (pathname === "/admin-samass-98342/login") {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex min-h-screen bg-[#0D0D0D] text-white">

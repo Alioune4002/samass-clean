@@ -16,9 +16,8 @@ import {
   updateLocalAvailability,
   updateLocalService,
 } from "./fallbackStore";
+import { enrichServicesForDisplay } from "./serviceCatalog";
 import { Availability, Booking, Service } from "./types";
-
-const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN;
 
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}) {
   const headers: Record<string, string> = {
@@ -27,10 +26,6 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}) {
       string
     >),
   };
-
-  if (ADMIN_TOKEN) {
-    headers.Authorization = `Token ${ADMIN_TOKEN}`;
-  }
 
   try {
     return await requestJson<T>(endpoint, {
@@ -53,7 +48,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}) {
 export async function adminGetServices() {
   try {
     const services = await apiRequest<Service[]>(`/services/`);
-    saveLocalServices(services);
+    saveLocalServices(enrichServicesForDisplay(services));
     return services;
   } catch (error) {
     if (isBackendUnavailableError(error)) {
@@ -146,6 +141,7 @@ export async function adminGetAvailabilities(date?: string) {
 export async function adminCreateAvailability(data: {
   start_datetime: string;
   end_datetime: string;
+  service_id?: number | null;
 }) {
   try {
     const availability = await apiRequest<Availability>(`/availabilities/`, {
@@ -153,6 +149,7 @@ export async function adminCreateAvailability(data: {
       body: JSON.stringify({
         start_datetime: data.start_datetime,
         end_datetime: data.end_datetime,
+        service_id: data.service_id ?? null,
       }),
     });
     saveLocalAvailabilities([
@@ -170,7 +167,11 @@ export async function adminCreateAvailability(data: {
 
 export async function adminUpdateAvailability(
   id: number,
-  data: { start_datetime: string; end_datetime: string }
+  data: {
+    start_datetime: string;
+    end_datetime: string;
+    service_id?: number | null;
+  }
 ){
   try {
     const availability = await apiRequest<Availability>(`/availabilities/${id}/`, {

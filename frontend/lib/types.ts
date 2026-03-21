@@ -2,6 +2,7 @@ export type Service = {
   id: number;
   title: string;
   description: string;
+  long_description?: string | null;
   durations_prices: Record<string, number>;
   image?: string | null;
   is_active?: boolean;
@@ -12,6 +13,7 @@ export type Availability = {
   start_datetime: string;
   end_datetime: string;
   is_booked: boolean;
+  service_id?: number | null;
   created_at: string;
   updated_at: string;
 };

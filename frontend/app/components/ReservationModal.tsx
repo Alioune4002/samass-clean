@@ -2,10 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  ManualReservationRequiredError,
-  isBackendFallbackMode,
-} from "../../lib/backendFallback";
+import { isBackendFallbackMode } from "../../lib/backendFallback";
 import { FALLBACK_STORAGE_KEYS } from "../../lib/fallbackData";
 import { createBooking, getAvailabilities, getServices } from "../../lib/api";
 import { Availability, Service } from "@/lib/types";
@@ -88,9 +85,10 @@ export default function ReservationModal({
   const [loadingServices, setLoadingServices] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [completionMode, setCompletionMode] = useState<"online" | "manual">(
+  const [completionMode, setCompletionMode] = useState<"online" | "fallback">(
     "online"
   );
+  const [completionMessage, setCompletionMessage] = useState("");
 
   
   useEffect(() => {
@@ -169,6 +167,11 @@ export default function ReservationModal({
     load();
   }, [isOpen, initialServiceId]);
 
+  useEffect(() => {
+    if (!isOpen || !selectedService || !selectedDuration) return;
+    void refreshAvailableDates();
+  }, [isOpen, selectedDuration, selectedService]);
+
 
   function resetState() {
     setStep(1);
@@ -180,6 +183,7 @@ export default function ReservationModal({
     setSelectedSlot(null);
     setApiError(null);
     setCompletionMode("online");
+    setCompletionMessage("");
   }
 
   
@@ -214,6 +218,11 @@ export default function ReservationModal({
       const data = await getAvailabilities();
       const now = new Date();
       const filtered = data
+        .filter(
+          (a) =>
+            a.service_id == null ||
+            a.service_id === selectedService.id
+        )
         .filter((a) => a.start_datetime.slice(0, 10) === date)
         .filter((a) => {
           const slotMinutes =
@@ -270,6 +279,20 @@ export default function ReservationModal({
           data
             .filter((a) => !a.is_booked)
             .filter((a) => new Date(a.end_datetime) > now)
+            .filter(
+              (a) =>
+                !selectedService ||
+                a.service_id == null ||
+                a.service_id === selectedService.id
+            )
+            .filter((a) => {
+              if (!selectedDuration) return true;
+              const slotMinutes =
+                (new Date(a.end_datetime).getTime() -
+                  new Date(a.start_datetime).getTime()) /
+                60000;
+              return slotMinutes >= selectedDuration;
+            })
             .map((a) => a.start_datetime.slice(0, 10))
         )
       ).sort();
@@ -324,33 +347,30 @@ export default function ReservationModal({
     setApiError(null);
 
     try {
-      if (selectedSlot.manualOnly) {
-        setCompletionMode("manual");
-        setStep(5);
-        return;
-      }
-
-      await createBooking({
+      const result = await createBooking({
         client_name: clientName,
         client_email: clientEmail,
         client_phone: clientPhone,
         client_comment: clientComment,
         serviceId: selectedService.id,
+        serviceTitle: selectedService.title,
         availabilityId: selectedSlot.availabilityId,
         durationMinutes: selectedDuration,
         startDateTime: selectedSlot.start,
+        slotLabel: selectedSlot.manualOnly
+          ? selectedSlot.label || "A convenir avec Sam"
+          : `${new Date(selectedSlot.start).toLocaleDateString("fr-FR", dateOptions)} a ${formatTime(selectedSlot.start)}`,
       });
-      setCompletionMode("online");
+
+      setCompletionMode(result.mode);
+      setCompletionMessage(result.mode === "fallback" ? result.message : "");
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem(FALLBACK_STORAGE_KEYS.reservationDraft);
       }
       setStep(5);
     } catch (err: any) {
-      const msg = err?.message || "Erreur lors de la réservation.";
-      if (err instanceof ManualReservationRequiredError) {
-        setCompletionMode("manual");
-        setStep(5);
-      } else if (msg.includes("trop court") || msg.includes("Durée supérieure")) {
+      const msg = err?.message || "";
+      if (msg.includes("trop court") || msg.includes("Durée supérieure")) {
         setApiError(
           "Ce créneau est déjà partiellement pris. Choisissez un autre horaire ou contactez Sam."
         );
@@ -358,8 +378,14 @@ export default function ReservationModal({
         setApiError(
           "Sam n'accepte pas les demandes créées moins de 2h avant le début. Merci de choisir un horaire ultérieur."
         );
+      } else if (msg.includes("momentan")) {
+        setApiError(
+          "La réservation en ligne est momentanément indisponible. Merci de contacter Sam via la page Contact."
+        );
       } else {
-        setApiError(msg);
+        setApiError(
+          "Impossible d'envoyer la demande pour le moment. Merci de réessayer ou de contacter Sam directement."
+        );
       }
     } finally {
       setLoading(false);
@@ -469,20 +495,18 @@ export default function ReservationModal({
               <p className="text-lg font-semibold text-gray-900">
                 {completionMode === "online"
                   ? "Demande envoyee"
-                  : "Reservation en mode secours"}
+                  : "Demande transmise en mode secours"}
               </p>
               {completionMode === "online" ? (
                 <p className="text-gray-600 text-sm">
-                  Vous recevrez un email de confirmation ou de refus. Si vous n&apos;avez pas de reponse
-                  au plus tard 2h avant l&apos;horaire choisi, considerez la demande annulee.
-                  Pensez a verifier vos spams pour etre sur de recevoir les emails.
+                  Vous recevrez un email de confirmation ou de refus. Si vous n&apos;avez pas de réponse
+                  au plus tard 2h avant l&apos;horaire choisi, considérez la demande annulée.
+                  Pensez à vérifier vos spams pour être sûr de recevoir les emails.
                 </p>
               ) : (
                 <div className="space-y-3">
                   <p className="text-gray-600 text-sm">
-                    La reservation en ligne est momentanement indisponible.
-                    Merci de contacter SAMASS via la page Contact, par email ou
-                    par telephone pour finaliser votre demande.
+                    {completionMessage}
                   </p>
                   <Link
                     href="/contact"
