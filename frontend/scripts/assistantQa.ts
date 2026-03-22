@@ -5,6 +5,8 @@ type QaCase = {
   titleIncludes?: string;
   shortIncludes?: string[];
   longIncludes?: string[];
+  forbiddenIncludes?: string[];
+  expectedSuggestions?: string[];
 };
 
 const cases: QaCase[] = [
@@ -17,15 +19,60 @@ const cases: QaCase[] = [
   { query: "Comment contacter Sam ?", titleIncludes: "Contacter SAMASS" },
   { query: "Que faire si aucun créneau n’est disponible ?", titleIncludes: "Aucun créneau disponible" },
 
-  { query: "Quels sont les tarifs du massage tantrique ?", titleIncludes: "Tarifs du Massage Tantrique", longIncludes: ["2h : 150 €"] },
-  { query: "Quels sont les tarifs du massage tonique ?", titleIncludes: "Tarifs du Massage Tonique", longIncludes: ["1h30 : 115 €"] },
-  { query: "Quels sont les tarifs du massage relaxant tonique ?", titleIncludes: "Tarifs du Massage Relaxant Tonique", longIncludes: ["45 min : 55 €"] },
-  { query: "Combien dure le massage tantrique ?", titleIncludes: "Durées du Massage Tantrique", shortIncludes: ["1h", "1h30", "2h"] },
-  { query: "Combien dure le massage tonique ?", titleIncludes: "Durées du Massage Tonique", shortIncludes: ["45 min", "1h", "1h30"] },
-  { query: "Combien dure le massage relaxant tonique ?", titleIncludes: "Durées du Massage Relaxant Tonique", shortIncludes: ["45 min", "1h", "1h30"] },
-  { query: "Comment se déroule le massage tantrique ?", titleIncludes: "Déroulement du Massage Tantrique" },
-  { query: "Comment se déroule le massage tonique ?", titleIncludes: "Déroulement du Massage Tonique" },
-  { query: "Comment se déroule le massage relaxant tonique ?", titleIncludes: "Déroulement du Massage Relaxant Tonique" },
+  {
+    query: "Quels sont les tarifs du massage tantrique ?",
+    titleIncludes: "Tarifs du Massage Tantrique",
+    longIncludes: ["2h : 150 €"],
+    forbiddenIncludes: ["Massage Tonique", "Massage Relaxant Tonique"],
+    expectedSuggestions: ["Combien dure le massage tantrique ?"],
+  },
+  {
+    query: "Quels sont les tarifs du massage tonique ?",
+    titleIncludes: "Tarifs du Massage Tonique",
+    longIncludes: ["1h30 : 115 €"],
+    forbiddenIncludes: ["Massage Tantrique", "Massage Relaxant Tonique"],
+    expectedSuggestions: ["Combien dure le massage tonique ?"],
+  },
+  {
+    query: "Quels sont les tarifs du massage relaxant tonique ?",
+    titleIncludes: "Tarifs du Massage Relaxant Tonique",
+    longIncludes: ["45 min : 55 €"],
+    forbiddenIncludes: ["Massage Tantrique"],
+    expectedSuggestions: ["Combien dure le massage relaxant tonique ?"],
+  },
+  {
+    query: "Combien dure le massage tantrique ?",
+    titleIncludes: "Durées du Massage Tantrique",
+    shortIncludes: ["1h", "1h30", "2h"],
+    forbiddenIncludes: ["Massage Tonique", "Massage Relaxant Tonique"],
+  },
+  {
+    query: "Combien dure le massage tonique ?",
+    titleIncludes: "Durées du Massage Tonique",
+    shortIncludes: ["45 min", "1h", "1h30"],
+    forbiddenIncludes: ["Massage Tantrique", "Massage Relaxant Tonique"],
+  },
+  {
+    query: "Combien dure le massage relaxant tonique ?",
+    titleIncludes: "Durées du Massage Relaxant Tonique",
+    shortIncludes: ["45 min", "1h", "1h30"],
+    forbiddenIncludes: ["Massage Tantrique"],
+  },
+  {
+    query: "Comment se déroule le massage tantrique ?",
+    titleIncludes: "Déroulement du Massage Tantrique",
+    forbiddenIncludes: ["Massage Tonique", "Massage Relaxant Tonique"],
+  },
+  {
+    query: "Comment se déroule le massage tonique ?",
+    titleIncludes: "Déroulement du Massage Tonique",
+    forbiddenIncludes: ["Massage Tantrique", "Massage Relaxant Tonique"],
+  },
+  {
+    query: "Comment se déroule le massage relaxant tonique ?",
+    titleIncludes: "Déroulement du Massage Relaxant Tonique",
+    forbiddenIncludes: ["Massage Tantrique"],
+  },
   { query: "Le massage tantrique dure-t-il 2 heures ?", titleIncludes: "Durée du Massage Tantrique", shortIncludes: ["Oui"] },
   { query: "Le massage tonique existe-t-il en 1h30 ?", titleIncludes: "Durée du Massage Tonique", shortIncludes: ["Oui"] },
   { query: "Le massage relaxant tonique existe-t-il en 45 minutes ?", titleIncludes: "Durée du Massage Relaxant Tonique", shortIncludes: ["Oui"] },
@@ -91,11 +138,34 @@ for (const testCase of cases) {
   }
 
   const fullLongText = response.longAnswer.join(" ");
+  const combinedText = `${response.title} ${response.shortAnswer} ${fullLongText}`;
   if (
     testCase.longIncludes &&
     !testCase.longIncludes.every((fragment) => fullLongText.includes(fragment))
   ) {
     console.error(`FAIL long: "${testCase.query}" -> "${fullLongText}"`);
+    failures += 1;
+    continue;
+  }
+
+  if (
+    testCase.forbiddenIncludes &&
+    testCase.forbiddenIncludes.some((fragment) => combinedText.includes(fragment))
+  ) {
+    console.error(`FAIL forbidden: "${testCase.query}" -> "${combinedText}"`);
+    failures += 1;
+    continue;
+  }
+
+  if (
+    testCase.expectedSuggestions &&
+    !testCase.expectedSuggestions.every((fragment) =>
+      response.suggestions.some((suggestion) => suggestion.includes(fragment))
+    )
+  ) {
+    console.error(
+      `FAIL suggestions: "${testCase.query}" -> "${response.suggestions.join(" | ")}"`
+    );
     failures += 1;
     continue;
   }

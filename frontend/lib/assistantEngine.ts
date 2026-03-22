@@ -35,9 +35,19 @@ type ServiceTarget = {
   aliases: string[];
 };
 
-type IntentResolution = {
+type IntentDetection = {
   intent: QueryIntent;
   score: number;
+};
+
+type AssistantContext = {
+  query: string;
+  normalizedQuery: string;
+  tokens: string[];
+  service: ServiceTarget | null;
+  intent: QueryIntent;
+  requestedDuration: number | null;
+  medicalBoundary: boolean;
 };
 
 export type AssistantMatch = {
@@ -85,6 +95,7 @@ const SERVICE_TARGETS: ServiceTarget[] = [
       "tantrik",
       "massage tantrik",
       "massage tantra",
+      "tantra",
     ],
   },
   {
@@ -298,20 +309,38 @@ function levenshtein(a: string, b: string) {
   return matrix[b.length][a.length];
 }
 
-function hasCloseTokenMatch(queryTokens: string[], candidate: string) {
-  const candidateTokens = tokenize(candidate);
+function containsCandidate(tokens: string[], candidate: string) {
+  const normalizedCandidate = normalizeText(candidate);
 
-  return candidateTokens.every((candidateToken) =>
-    queryTokens.some((queryToken) => {
-      if (queryToken === candidateToken) return true;
-      if (
-        queryToken.includes(candidateToken) ||
-        candidateToken.includes(queryToken)
-      ) {
+  return tokens.some((token) => {
+    if (token === normalizedCandidate) return true;
+    if (
+      token.length >= 4 &&
+      normalizedCandidate.length >= 4 &&
+      (token.includes(normalizedCandidate) || normalizedCandidate.includes(token))
+    ) {
+      return true;
+    }
+    if (token.length >= 5 && normalizedCandidate.length >= 5) {
+      return levenshtein(token, normalizedCandidate) <= 1;
+    }
+    return false;
+  });
+}
+
+function matchesAnyCandidate(tokens: string[], candidates: string[]) {
+  return candidates.some((candidate) => containsCandidate(tokens, candidate));
+}
+
+function hasCloseTokenMatch(tokens: string[], candidate: string) {
+  return tokenize(candidate).every((candidateToken) =>
+    tokens.some((token) => {
+      if (token === candidateToken) return true;
+      if (token.includes(candidateToken) || candidateToken.includes(token)) {
         return true;
       }
-      if (candidateToken.length >= 5 && queryToken.length >= 5) {
-        return levenshtein(queryToken, candidateToken) <= 1;
+      if (token.length >= 5 && candidateToken.length >= 5) {
+        return levenshtein(token, candidateToken) <= 1;
       }
       return false;
     })
@@ -341,11 +370,11 @@ function getServiceData(title: string) {
   return service;
 }
 
-function findArticle(articleId: string) {
+function getArticle(articleId: string) {
   return ASSISTANT_ARTICLES.find((article) => article.id === articleId);
 }
 
-function findEntry(entryId: string) {
+function getKnowledgeEntry(entryId: string) {
   const entry = ASSISTANT_KNOWLEDGE_BASE.find((item) => item.id === entryId);
   if (!entry) {
     throw new Error(`Missing assistant knowledge entry "${entryId}".`);
@@ -354,21 +383,14 @@ function findEntry(entryId: string) {
 }
 
 function buildMatches(entry: AssistantKnowledgeEntry, score = 100): AssistantMatch[] {
-  return [
-    {
-      id: entry.id,
-      title: entry.title,
-      intent: entry.intent,
-      score,
-    },
-  ];
+  return [{ id: entry.id, title: entry.title, intent: entry.intent, score }];
 }
 
 function buildKnowledgeResponse(
   entry: AssistantKnowledgeEntry,
   overrides?: Partial<AssistantResponse>
 ): AssistantResponse {
-  const article = entry.articleId ? findArticle(entry.articleId) : undefined;
+  const article = entry.articleId ? getArticle(entry.articleId) : undefined;
 
   return {
     type: "knowledge",
@@ -417,55 +439,615 @@ function buildOutOfScopeResponse(): AssistantResponse {
   };
 }
 
-function detectServiceTarget(query: string, queryTokens: string[]) {
+function buildServiceLinks(serviceTitle: string): AssistantLink[] {
+  return [
+    { href: "/reservation", label: `Réserver ${serviceTitle}` },
+    { href: "/services", label: "Voir les massages" },
+    { href: "/contact", label: "Contacter Sam" },
+  ];
+}
+
+function extractRequestedDuration(query: string) {
   const normalizedQuery = normalizeText(query);
-  const hasToken = (candidate: string) =>
-    queryTokens.some((token) => {
-      const normalizedCandidate = normalizeText(candidate);
-      if (token === normalizedCandidate) return true;
-      if (
-        token.length >= 5 &&
-        normalizedCandidate.length >= 5 &&
-        levenshtein(token, normalizedCandidate) <= 1
-      ) {
-        return true;
-      }
-      return false;
-    });
-
-  const hasExactAlias = (aliases: string[]) =>
-    aliases.some((alias) => normalizedQuery.includes(normalizeText(alias)));
 
   if (
-    hasExactAlias(SERVICE_TARGETS[0].aliases) ||
-    ((hasToken("relaxant") || hasToken("relaxation")) &&
-      (hasToken("tonique") || hasToken("tonik")))
+    /\b120\s*min\b/.test(normalizedQuery) ||
+    /\b2\s*h\b/.test(normalizedQuery) ||
+    /\b2\s*heures?\b/.test(normalizedQuery)
   ) {
-    return SERVICE_TARGETS[0];
+    return 120;
   }
 
   if (
-    hasExactAlias(SERVICE_TARGETS[1].aliases) ||
-    hasToken("tantrique") ||
-    hasToken("tantrik") ||
-    hasToken("tantra")
+    /\b90\s*min\b/.test(normalizedQuery) ||
+    /\b1\s*h\s*30\b/.test(normalizedQuery) ||
+    /\b1h30\b/.test(normalizedQuery)
   ) {
-    return SERVICE_TARGETS[1];
+    return 90;
   }
 
   if (
-    hasExactAlias(SERVICE_TARGETS[2].aliases) ||
-    hasToken("tonique") ||
-    hasToken("tonik")
+    /\b60\s*min\b/.test(normalizedQuery) ||
+    /\b1\s*h\b/.test(normalizedQuery) ||
+    /\b1\s*heure\b/.test(normalizedQuery)
   ) {
-    return SERVICE_TARGETS[2];
+    return 60;
+  }
+
+  if (/\b45\s*min\b/.test(normalizedQuery) || /\b45\s*minutes?\b/.test(normalizedQuery)) {
+    return 45;
   }
 
   return null;
 }
 
-function detectIntent(query: string, queryTokens: string[]): IntentResolution {
+function scoreEntry(query: string, tokens: string[], entry: AssistantKnowledgeEntry) {
   const normalizedQuery = normalizeText(query);
+  let score = 0;
+
+  const normalizedQuestion = normalizeText(entry.question);
+  if (normalizedQuery === normalizedQuestion) score += 20;
+  else if (normalizedQuery.includes(normalizedQuestion)) score += 12;
+
+  for (const phrase of entry.phrases) {
+    const normalizedPhrase = normalizeText(phrase);
+    if (!normalizedPhrase) continue;
+
+    if (normalizedQuery === normalizedPhrase) score += 18;
+    else if (normalizedQuery.includes(normalizedPhrase)) score += 10;
+    else if (hasCloseTokenMatch(tokens, normalizedPhrase)) score += 6;
+  }
+
+  for (const keyword of entry.keywords) {
+    const normalizedKeyword = normalizeText(keyword);
+    if (!normalizedKeyword) continue;
+
+    if (normalizedQuery.includes(normalizedKeyword)) {
+      score += normalizedKeyword.includes(" ") ? 5 : 3;
+    } else if (hasCloseTokenMatch(tokens, normalizedKeyword)) {
+      score += 1;
+    }
+  }
+
+  return score;
+}
+
+function fallbackKnowledgeSearch(query: string, tokens: string[]) {
+  const ranked = ASSISTANT_KNOWLEDGE_BASE.map((entry) => ({
+    entry,
+    score: scoreEntry(query, tokens, entry),
+  }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (!ranked.length || ranked[0].score < 7) {
+    return null;
+  }
+
+  const topEntry = ranked[0].entry;
+  const matches: AssistantMatch[] = ranked.slice(0, 3).map((item) => ({
+    id: item.entry.id,
+    title: item.entry.title,
+    intent: item.entry.intent,
+    score: item.score,
+  }));
+
+  return buildKnowledgeResponse(topEntry, { matches });
+}
+
+function buildServicePricingResponse(context: AssistantContext) {
+  const serviceTarget = context.service!;
+  const service = getServiceData(serviceTarget.title);
+  const durations = Object.keys(service.durations_prices).map(Number).sort((a, b) => a - b);
+
+  if (context.requestedDuration) {
+    const price = service.durations_prices[String(context.requestedDuration)];
+    if (price) {
+      return {
+        type: "knowledge" as const,
+        title: `Tarifs du ${service.title}`,
+        shortAnswer: `Oui, le ${service.title} est proposé en ${formatDurationLabel(
+          context.requestedDuration
+        )}, au tarif de ${price} €.`,
+        longAnswer: [
+          `Formules actuellement proposées : ${durations
+            .map((duration) => `${formatDurationLabel(duration)} : ${service.durations_prices[String(duration)]} €`)
+            .join(" • ")}.`,
+        ],
+        links: buildServiceLinks(service.title),
+        suggestions: [
+          `Combien dure le ${service.title.toLowerCase()} ?`,
+          `Comment se déroule le ${service.title.toLowerCase()} ?`,
+          "Comment réserver ?",
+        ],
+        matches: [],
+      };
+    }
+
+    return {
+      type: "knowledge" as const,
+      title: `Tarifs du ${service.title}`,
+      shortAnswer: `Non, le ${service.title} n’est pas proposé en ${formatDurationLabel(
+        context.requestedDuration
+      )}.`,
+      longAnswer: [
+        `Formules actuellement proposées : ${durations
+          .map((duration) => `${formatDurationLabel(duration)} : ${service.durations_prices[String(duration)]} €`)
+          .join(" • ")}.`,
+      ],
+      links: buildServiceLinks(service.title),
+      suggestions: [
+        `Combien dure le ${service.title.toLowerCase()} ?`,
+        "Quels sont les tarifs ?",
+      ],
+      matches: [],
+    };
+  }
+
+  return {
+    type: "knowledge" as const,
+    title: `Tarifs du ${service.title}`,
+    shortAnswer: `Voici les tarifs actuellement proposés pour le ${service.title}.`,
+    longAnswer: durations.map(
+      (duration) =>
+        `${formatDurationLabel(duration)} : ${service.durations_prices[String(duration)]} €`
+    ),
+    links: buildServiceLinks(service.title),
+    suggestions: [
+      `Combien dure le ${service.title.toLowerCase()} ?`,
+      `Comment se déroule le ${service.title.toLowerCase()} ?`,
+      "Comment réserver ?",
+    ],
+    matches: [],
+  };
+}
+
+function buildServiceDurationResponse(context: AssistantContext) {
+  const serviceTarget = context.service!;
+  const service = getServiceData(serviceTarget.title);
+  const durations = Object.keys(service.durations_prices).map(Number).sort((a, b) => a - b);
+
+  if (context.requestedDuration) {
+    const exists = durations.includes(context.requestedDuration);
+    return {
+      type: "knowledge" as const,
+      title: `Durée du ${service.title}`,
+      shortAnswer: exists
+        ? `Oui, le ${service.title} existe en ${formatDurationLabel(context.requestedDuration)}.`
+        : `Non, le ${service.title} n’est pas proposé en ${formatDurationLabel(context.requestedDuration)}.`,
+      longAnswer: [
+        `Durées actuellement proposées : ${durations
+          .map((duration) => `${formatDurationLabel(duration)} (${service.durations_prices[String(duration)]} €)`)
+          .join(" • ")}.`,
+      ],
+      links: buildServiceLinks(service.title),
+      suggestions: [
+        `Quels sont les tarifs du ${service.title.toLowerCase()} ?`,
+        `Comment se déroule le ${service.title.toLowerCase()} ?`,
+      ],
+      matches: [],
+    };
+  }
+
+  return {
+    type: "knowledge" as const,
+    title: `Durées du ${service.title}`,
+    shortAnswer: `Le ${service.title} est actuellement proposé en ${formatDurationList(
+      durations
+    )}.`,
+    longAnswer: durations.map(
+      (duration) =>
+        `${formatDurationLabel(duration)} : ${service.durations_prices[String(duration)]} €`
+    ),
+    links: buildServiceLinks(service.title),
+    suggestions: [
+      `Quels sont les tarifs du ${service.title.toLowerCase()} ?`,
+      `Comment se déroule le ${service.title.toLowerCase()} ?`,
+    ],
+    matches: [],
+  };
+}
+
+function buildServiceProcessResponse(context: AssistantContext) {
+  const serviceTarget = context.service!;
+  const service = getServiceData(serviceTarget.title);
+
+  return {
+    type: "knowledge" as const,
+    title: `Déroulement du ${service.title}`,
+    shortAnswer: service.description,
+    longAnswer: service.long_description.split("\n\n"),
+    links: buildServiceLinks(service.title),
+    suggestions: [
+      `Quels sont les tarifs du ${service.title.toLowerCase()} ?`,
+      `Combien dure le ${service.title.toLowerCase()} ?`,
+      "Comment préparer ma séance ?",
+    ],
+    matches: [],
+  };
+}
+
+function buildServiceAftercareResponse(context: AssistantContext) {
+  const serviceTarget = context.service!;
+  const service = getServiceData(serviceTarget.title);
+  const articleId =
+    serviceTarget.key === "tantrique"
+      ? "after-tantrique"
+      : serviceTarget.key === "tonique"
+      ? "after-tonic"
+      : "after-massage";
+  const article = getArticle(articleId);
+
+  const shortAnswer =
+    serviceTarget.key === "tantrique"
+      ? "Après un massage tantrique, l’idéal est souvent de préserver un peu de calme pour intégrer la séance avec douceur."
+      : serviceTarget.key === "tonique"
+      ? "Après un massage tonique, mieux vaut éviter de repartir immédiatement sur un effort intense et laisser le corps intégrer le travail musculaire."
+      : "Après un massage relaxant tonique, l’idéal est de prolonger un peu le calme, de bien s’hydrater et de laisser le corps garder les effets de la séance.";
+
+  return {
+    type: "knowledge" as const,
+    title: `Après le ${service.title}`,
+    shortAnswer,
+    longAnswer: article ? article.body : getKnowledgeEntry("aftercare").longAnswer,
+    article,
+    links: buildServiceLinks(service.title),
+    suggestions: [
+      "Faut-il boire de l’eau après ?",
+      "Peut-on prendre une douche après ?",
+      "Faut-il se reposer après un massage ?",
+    ],
+    matches: [],
+  };
+}
+
+function buildServicePreparationResponse(context: AssistantContext) {
+  const serviceTarget = context.service!;
+  const service = getServiceData(serviceTarget.title);
+
+  let shortAnswer =
+    `Pour le ${service.title}, l’essentiel est de venir dans une tenue confortable, sans précipitation si possible, et de signaler simplement votre état du moment au début de la séance.`;
+
+  if (context.normalizedQuery.includes("manger")) {
+    shortAnswer =
+      "Mieux vaut éviter un repas trop lourd juste avant la séance. L’idée est d’arriver le plus confortablement possible.";
+  } else if (
+    context.normalizedQuery.includes("habille") ||
+    context.normalizedQuery.includes("tenue")
+  ) {
+    shortAnswer =
+      "Une tenue simple et confortable est généralement le meilleur choix pour venir à votre séance.";
+  }
+
+  return {
+    type: "knowledge" as const,
+    title: `Préparer votre ${service.title.toLowerCase()}`,
+    shortAnswer,
+    longAnswer: getKnowledgeEntry("preparation").longAnswer,
+    article: getArticle("prepare-session"),
+    links: buildServiceLinks(service.title),
+    suggestions: [
+      "Comment se passe une première séance ?",
+      `Comment se déroule le ${service.title.toLowerCase()} ?`,
+    ],
+    matches: [],
+  };
+}
+
+function buildServiceSportResponse(context: AssistantContext) {
+  const serviceTarget = context.service!;
+
+  if (serviceTarget.key === "tonique") {
+    return {
+      type: "knowledge" as const,
+      title: "Massage tonique et sport",
+      shortAnswer:
+        "Oui, le massage tonique est souvent le plus adapté après le sport si vous cherchez une récupération plus musculaire et un travail plus profond.",
+      longAnswer: getArticle("massage-sport")?.body || getKnowledgeEntry("sport-recovery").longAnswer,
+      article: getArticle("massage-sport"),
+      links: buildServiceLinks("Massage Tonique"),
+      suggestions: [
+        "Que faire après un massage tonique ?",
+        "Combien dure le massage tonique ?",
+      ],
+      matches: [],
+    };
+  }
+
+  if (serviceTarget.key === "relaxant-tonique") {
+    return {
+      type: "knowledge" as const,
+      title: "Massage relaxant tonique et sport",
+      shortAnswer:
+        "Le massage relaxant tonique peut convenir après le sport si vous cherchez à la fois relâcher les tensions et retrouver un peu de fluidité, avec une intensité moins directement axée récupération profonde qu’un tonique pur.",
+      longAnswer: [
+        "Si votre objectif principal est la récupération musculaire appuyée, le massage tonique reste généralement le plus ciblé.",
+        "Si vous voulez relâcher les tensions tout en gardant une dimension apaisante, le massage relaxant tonique peut être une bonne option.",
+      ],
+      links: buildServiceLinks("Massage Relaxant Tonique"),
+      suggestions: [
+        "Quel massage après le sport ?",
+        "Quels sont les tarifs du massage relaxant tonique ?",
+      ],
+      matches: [],
+    };
+  }
+
+  return {
+    type: "knowledge" as const,
+    title: "Massage tantrique et sport",
+    shortAnswer:
+      "Le massage tantrique n’est généralement pas celui que l’on choisit en premier dans une logique de récupération sportive. Il répond plutôt à un besoin de présence, de lenteur et de reconnexion au corps.",
+    longAnswer: [
+      "Après le sport, si vous cherchez avant tout un travail orienté récupération musculaire, le massage tonique sera souvent plus adapté.",
+      "Le massage tantrique peut avoir du sens dans une autre intention, plus sensorielle et introspective.",
+    ],
+    links: buildServiceLinks("Massage Tantrique"),
+    suggestions: [
+      "Quel massage après le sport ?",
+      "Quelle est la différence entre les massages ?",
+    ],
+    matches: [],
+  };
+}
+
+function buildServiceOverviewResponse(context: AssistantContext) {
+  const serviceTarget = context.service!;
+  const service = getServiceData(serviceTarget.title);
+
+  return {
+    type: "knowledge" as const,
+    title: service.title,
+    shortAnswer: service.description,
+    longAnswer: [
+      ...service.long_description.split("\n\n").slice(0, 2),
+      `Durées proposées : ${Object.keys(service.durations_prices)
+        .map((duration) => formatDurationLabel(Number(duration)))
+        .join(", ")}.`,
+    ],
+    links: buildServiceLinks(service.title),
+    suggestions: [
+      `Quels sont les tarifs du ${service.title.toLowerCase()} ?`,
+      `Combien dure le ${service.title.toLowerCase()} ?`,
+      `Comment se déroule le ${service.title.toLowerCase()} ?`,
+    ],
+    matches: [],
+  };
+}
+
+function buildGeneralSessionProcessResponse() {
+  return {
+    type: "knowledge" as const,
+    title: "Déroulement d’une séance",
+    shortAnswer:
+      "Une séance commence par un temps d’accueil et d’échange, puis le massage est ajusté à votre rythme, à vos tensions et à votre besoin du moment.",
+    longAnswer: [
+      "Le début de la séance sert à poser un cadre simple et clair : besoin du moment, zones de tension, intensité recherchée, durée et rythme souhaité.",
+      "Vous vous installez ensuite dans un espace calme et la séance se déroule de façon personnalisée.",
+      "Elle se termine par un retour plus posé afin de vous laisser repartir dans un état plus détendu et plus ancré.",
+    ],
+    links: DEFAULT_LINKS,
+    suggestions: [
+      "Quelle est la différence entre les massages ?",
+      "Comment se passe une première séance ?",
+      "Quel massage choisir ?",
+    ],
+    matches: [],
+  };
+}
+
+function buildPreparationResponse(context: AssistantContext) {
+  const entry = getKnowledgeEntry("preparation");
+  let shortAnswer = entry.shortAnswer;
+
+  if (context.normalizedQuery.includes("manger")) {
+    shortAnswer =
+      "Il vaut mieux éviter un repas trop lourd juste avant un massage afin d’arriver plus confortablement à la séance.";
+  } else if (
+    context.normalizedQuery.includes("habille") ||
+    context.normalizedQuery.includes("tenue")
+  ) {
+    shortAnswer =
+      "Une tenue simple et confortable est généralement préférable pour venir à votre séance.";
+  } else if (context.normalizedQuery.includes("apprehension")) {
+    shortAnswer =
+      "C’est tout à fait normal d’avoir un peu d’appréhension. Le temps d’accueil au début sert justement à poser un cadre rassurant et à avancer à votre rythme.";
+  }
+
+  return buildKnowledgeResponse(entry, {
+    shortAnswer,
+    article: getArticle("prepare-session"),
+  });
+}
+
+function buildAftercareResponse(context: AssistantContext) {
+  const oilsEntry = getKnowledgeEntry("oils-hydration-rest");
+  const aftercareEntry = getKnowledgeEntry("aftercare");
+
+  if (
+    context.normalizedQuery.includes("eau") ||
+    context.normalizedQuery.includes("boire")
+  ) {
+    return buildKnowledgeResponse(oilsEntry, {
+      shortAnswer:
+        "Oui, boire de l’eau après un massage est un bon réflexe simple pour rester confortable et prolonger la sensation de fluidité.",
+    });
+  }
+
+  if (
+    context.normalizedQuery.includes("douche") ||
+    context.normalizedQuery.includes("reposer") ||
+    context.normalizedQuery.includes("repos")
+  ) {
+    return buildKnowledgeResponse(oilsEntry);
+  }
+
+  return buildKnowledgeResponse(aftercareEntry, {
+    article: getArticle("after-massage"),
+  });
+}
+
+function buildRecommendationResponse(context: AssistantContext) {
+  const entry = getKnowledgeEntry("choose-massage");
+
+  if (
+    context.normalizedQuery.includes("sportif") ||
+    context.normalizedQuery.includes("sport")
+  ) {
+    return {
+      type: "knowledge" as const,
+      title: "Quel massage après le sport ?",
+      shortAnswer:
+        "Si votre besoin principal est la récupération musculaire après le sport, le massage tonique est généralement le plus adapté.",
+      longAnswer: [
+        "Le massage tonique aide davantage à travailler les tensions musculaires et la récupération.",
+        "Si vous cherchez quelque chose de plus équilibré entre détente et relance, le massage relaxant tonique peut aussi convenir.",
+      ],
+      links: DEFAULT_LINKS,
+      suggestions: [
+        "Le massage tonique est-il adapté après le sport ?",
+        "Quels sont les tarifs du massage tonique ?",
+      ],
+      matches: [],
+    };
+  }
+
+  if (context.normalizedQuery.includes("stress")) {
+    return {
+      type: "knowledge" as const,
+      title: "Massage pour le stress",
+      shortAnswer:
+        "Si votre besoin principal est de relâcher la pression et de retrouver du calme, le massage relaxant tonique est souvent le meilleur point d’entrée.",
+      longAnswer: [
+        "Il combine douceur et relance légère, ce qui convient bien quand le corps et le mental ont besoin de se relâcher sans perdre complètement l’élan.",
+        "Si vous cherchez une approche plus lente et plus centrée sur la sensation, le massage tantrique peut aussi avoir du sens selon votre besoin.",
+      ],
+      links: DEFAULT_LINKS,
+      suggestions: [
+        "Quelle est la différence entre les massages ?",
+        "Quels sont les tarifs du massage relaxant tonique ?",
+      ],
+      matches: [],
+    };
+  }
+
+  if (
+    context.normalizedQuery.includes("fatigue") ||
+    context.normalizedQuery.includes("dos") ||
+    context.normalizedQuery.includes("epaules")
+  ) {
+    return {
+      type: "knowledge" as const,
+      title: "Massage pour tensions ou fatigue",
+      shortAnswer:
+        "Si vous sentez surtout des tensions physiques ou une fatigue musculaire, le massage tonique est souvent le plus adapté. Si vous voulez un équilibre entre relâchement et douceur, le relaxant tonique peut aussi convenir.",
+      longAnswer: [
+        "Le bon choix dépend surtout de l’intensité que vous recherchez et de la façon dont votre corps se sent aujourd’hui.",
+        "Si la douleur est importante, s’il y a une blessure ou une situation médicale particulière, mieux vaut en parler avant la séance.",
+      ],
+      links: DEFAULT_LINKS,
+      suggestions: [
+        "Le massage tonique est-il adapté après le sport ?",
+        "Y a-t-il des précautions à prendre ?",
+      ],
+      matches: [],
+    };
+  }
+
+  return buildKnowledgeResponse(entry);
+}
+
+function buildGenericIntentResponse(context: AssistantContext) {
+  if (context.intent === "difference") {
+    return buildKnowledgeResponse(getKnowledgeEntry("services-difference"));
+  }
+
+  if (context.intent === "pricing") {
+    return buildKnowledgeResponse(getKnowledgeEntry("pricing"));
+  }
+
+  if (context.intent === "duration") {
+    return buildKnowledgeResponse(getKnowledgeEntry("duration"));
+  }
+
+  if (context.intent === "process") {
+    return buildGeneralSessionProcessResponse();
+  }
+
+  if (context.intent === "preparation") {
+    return buildPreparationResponse(context);
+  }
+
+  if (context.intent === "aftercare") {
+    return buildAftercareResponse(context);
+  }
+
+  if (context.intent === "booking") {
+    if (
+      context.normalizedQuery.includes("aucun creneau") ||
+      context.normalizedQuery.includes("pas de disponibilite") ||
+      context.normalizedQuery.includes("aucune disponibilite")
+    ) {
+      return buildKnowledgeResponse(getKnowledgeEntry("booking-no-slots"));
+    }
+    return buildKnowledgeResponse(getKnowledgeEntry("booking"));
+  }
+
+  if (context.intent === "contact") {
+    return buildKnowledgeResponse(getKnowledgeEntry("contact"));
+  }
+
+  if (context.intent === "contraindications") {
+    return buildKnowledgeResponse(getKnowledgeEntry("contraindications"));
+  }
+
+  if (context.intent === "frequency") {
+    return buildKnowledgeResponse(getKnowledgeEntry("frequency"), {
+      article: getArticle("frequency"),
+    });
+  }
+
+  if (context.intent === "sport") {
+    return buildKnowledgeResponse(getKnowledgeEntry("sport-recovery"), {
+      article: getArticle("massage-sport"),
+    });
+  }
+
+  if (context.intent === "first_session") {
+    return buildKnowledgeResponse(getKnowledgeEntry("first-session"));
+  }
+
+  if (context.intent === "choose") {
+    return buildRecommendationResponse(context);
+  }
+
+  return null;
+}
+
+export function detectService(query: string) {
+  const tokens = tokenize(query);
+  const hasRelaxAnchor = matchesAnyCandidate(tokens, ["relaxant", "relaxation"]);
+  const hasTonicAnchor = matchesAnyCandidate(tokens, ["tonique", "tonik"]);
+  const hasTantricAnchor = matchesAnyCandidate(tokens, ["tantrique", "tantrik", "tantra"]);
+
+  if (hasRelaxAnchor && hasTonicAnchor) {
+    return SERVICE_TARGETS.find((service) => service.key === "relaxant-tonique") ?? null;
+  }
+
+  if (hasTantricAnchor) {
+    return SERVICE_TARGETS.find((service) => service.key === "tantrique") ?? null;
+  }
+
+  if (hasTonicAnchor && !hasRelaxAnchor) {
+    return SERVICE_TARGETS.find((service) => service.key === "tonique") ?? null;
+  }
+
+  return null;
+}
+
+export function detectIntent(query: string): IntentDetection {
+  const normalizedQuery = normalizeText(query);
+  const tokens = tokenize(query);
 
   if (
     normalizedQuery.includes("aucun creneau") ||
@@ -517,7 +1099,7 @@ function detectIntent(query: string, queryTokens: string[]): IntentResolution {
     return { intent: "aftercare", score: 100 };
   }
 
-  const baseScores: IntentResolution[] = (Object.keys(INTENT_KEYWORDS) as QueryIntent[])
+  const scored = (Object.keys(INTENT_KEYWORDS) as QueryIntent[])
     .filter((intent) => intent !== "unknown")
     .map((intent) => {
       let score = 0;
@@ -527,7 +1109,7 @@ function detectIntent(query: string, queryTokens: string[]): IntentResolution {
 
         if (normalizedQuery.includes(normalizedKeyword)) {
           score += normalizedKeyword.includes(" ") ? 8 : 4;
-        } else if (hasCloseTokenMatch(queryTokens, normalizedKeyword)) {
+        } else if (hasCloseTokenMatch(tokens, normalizedKeyword)) {
           score += 2;
         }
       }
@@ -535,673 +1117,99 @@ function detectIntent(query: string, queryTokens: string[]): IntentResolution {
     })
     .sort((a, b) => b.score - a.score);
 
-  const best = baseScores[0];
+  const best = scored[0];
   if (!best || best.score <= 0) {
     return { intent: "unknown", score: 0 };
   }
+
   return best;
 }
 
-function extractRequestedDuration(query: string) {
+export function buildContext(
+  service: ServiceTarget | null,
+  intentDetection: IntentDetection,
+  query: string
+): AssistantContext {
   const normalizedQuery = normalizeText(query);
-
-  if (
-    /\b120\s*min\b/.test(normalizedQuery) ||
-    /\b2\s*h\b/.test(normalizedQuery) ||
-    /\b2\s*heures?\b/.test(normalizedQuery)
-  ) {
-    return 120;
-  }
-
-  if (
-    /\b90\s*min\b/.test(normalizedQuery) ||
-    /\b1\s*h\s*30\b/.test(normalizedQuery) ||
-    /\b1h30\b/.test(normalizedQuery)
-  ) {
-    return 90;
-  }
-
-  if (
-    /\b60\s*min\b/.test(normalizedQuery) ||
-    /\b1\s*h\b/.test(normalizedQuery) ||
-    /\b1\s*heure\b/.test(normalizedQuery)
-  ) {
-    return 60;
-  }
-
-  if (/\b45\s*min\b/.test(normalizedQuery) || /\b45\s*minutes?\b/.test(normalizedQuery)) {
-    return 45;
-  }
-
-  return null;
-}
-
-function scoreEntry(query: string, queryTokens: string[], entry: AssistantKnowledgeEntry) {
-  const normalizedQuery = normalizeText(query);
-  let score = 0;
-
-  const question = normalizeText(entry.question);
-  if (normalizedQuery === question) score += 20;
-  else if (normalizedQuery.includes(question)) score += 12;
-
-  for (const phrase of entry.phrases) {
-    const normalizedPhrase = normalizeText(phrase);
-    if (!normalizedPhrase) continue;
-
-    if (normalizedQuery === normalizedPhrase) score += 18;
-    else if (normalizedQuery.includes(normalizedPhrase)) score += 10;
-    else if (hasCloseTokenMatch(queryTokens, normalizedPhrase)) score += 6;
-  }
-
-  for (const keyword of entry.keywords) {
-    const normalizedKeyword = normalizeText(keyword);
-    if (!normalizedKeyword) continue;
-
-    if (normalizedQuery.includes(normalizedKeyword)) {
-      score += normalizedKeyword.includes(" ") ? 5 : 3;
-    } else if (hasCloseTokenMatch(queryTokens, normalizedKeyword)) {
-      score += 1;
-    }
-  }
-
-  return score;
-}
-
-function buildServiceLinks(serviceTitle: string): AssistantLink[] {
-  return [
-    { href: "/reservation", label: `Réserver ${serviceTitle}` },
-    { href: "/services", label: "Voir les massages" },
-    { href: "/contact", label: "Contacter Sam" },
-  ];
-}
-
-function buildServicePricingResponse(serviceTarget: ServiceTarget, requestedDuration: number | null) {
-  const service = getServiceData(serviceTarget.title);
-  const durations = Object.keys(service.durations_prices).map(Number).sort((a, b) => a - b);
-
-  if (requestedDuration) {
-    const price = service.durations_prices[String(requestedDuration)];
-    if (price) {
-      return {
-        type: "knowledge" as const,
-        title: `Tarif du ${service.title}`,
-        shortAnswer: `Oui, le ${service.title} est proposé en ${formatDurationLabel(
-          requestedDuration
-        )}, au tarif de ${price} €.`,
-        longAnswer: [
-          `Formules actuellement proposées : ${durations
-            .map((duration) => `${formatDurationLabel(duration)} : ${service.durations_prices[String(duration)]} €`)
-            .join(" • ")}.`,
-        ],
-        links: buildServiceLinks(service.title),
-        suggestions: [
-          `Combien dure le ${service.title.toLowerCase()} ?`,
-          `Comment se déroule le ${service.title.toLowerCase()} ?`,
-          "Comment réserver ?",
-        ],
-        matches: [],
-      };
-    }
-
-    return {
-      type: "knowledge" as const,
-      title: `Tarifs du ${service.title}`,
-      shortAnswer: `Non, le ${service.title} n’est pas proposé en ${formatDurationLabel(
-        requestedDuration
-      )}.`,
-      longAnswer: [
-        `Formules actuellement proposées : ${durations
-          .map((duration) => `${formatDurationLabel(duration)} : ${service.durations_prices[String(duration)]} €`)
-          .join(" • ")}.`,
-      ],
-      links: buildServiceLinks(service.title),
-      suggestions: [
-        `Combien dure le ${service.title.toLowerCase()} ?`,
-        "Quels sont les tarifs ?",
-      ],
-      matches: [],
-    };
-  }
-
-  return {
-    type: "knowledge" as const,
-    title: `Tarifs du ${service.title}`,
-    shortAnswer: `Voici les tarifs actuellement proposés pour le ${service.title}.`,
-    longAnswer: durations.map(
-      (duration) =>
-        `${formatDurationLabel(duration)} : ${service.durations_prices[String(duration)]} €`
-    ),
-    links: buildServiceLinks(service.title),
-    suggestions: [
-      `Combien dure le ${service.title.toLowerCase()} ?`,
-      `Comment se déroule le ${service.title.toLowerCase()} ?`,
-      "Comment réserver ?",
-    ],
-    matches: [],
-  };
-}
-
-function buildServiceDurationResponse(serviceTarget: ServiceTarget, requestedDuration: number | null) {
-  const service = getServiceData(serviceTarget.title);
-  const durations = Object.keys(service.durations_prices).map(Number).sort((a, b) => a - b);
-
-  if (requestedDuration) {
-    const exists = durations.includes(requestedDuration);
-
-    return {
-      type: "knowledge" as const,
-      title: `Durée du ${service.title}`,
-      shortAnswer: exists
-        ? `Oui, le ${service.title} existe en ${formatDurationLabel(requestedDuration)}.`
-        : `Non, le ${service.title} n’est pas proposé en ${formatDurationLabel(requestedDuration)}.`,
-      longAnswer: [
-        `Durées actuellement proposées : ${durations
-          .map((duration) => `${formatDurationLabel(duration)} (${service.durations_prices[String(duration)]} €)`)
-          .join(" • ")}.`,
-      ],
-      links: buildServiceLinks(service.title),
-      suggestions: [
-        `Quels sont les tarifs du ${service.title.toLowerCase()} ?`,
-        `Comment se déroule le ${service.title.toLowerCase()} ?`,
-      ],
-      matches: [],
-    };
-  }
-
-  return {
-    type: "knowledge" as const,
-    title: `Durées du ${service.title}`,
-    shortAnswer: `Le ${service.title} est actuellement proposé en ${formatDurationList(
-      durations
-    )}.`,
-    longAnswer: durations.map(
-      (duration) =>
-        `${formatDurationLabel(duration)} : ${service.durations_prices[String(duration)]} €`
-    ),
-    links: buildServiceLinks(service.title),
-    suggestions: [
-      `Quels sont les tarifs du ${service.title.toLowerCase()} ?`,
-      `Comment se déroule le ${service.title.toLowerCase()} ?`,
-    ],
-    matches: [],
-  };
-}
-
-function buildServiceProcessResponse(serviceTarget: ServiceTarget) {
-  const service = getServiceData(serviceTarget.title);
-
-  return {
-    type: "knowledge" as const,
-    title: `Déroulement du ${service.title}`,
-    shortAnswer: service.description,
-    longAnswer: service.long_description.split("\n\n"),
-    links: buildServiceLinks(service.title),
-    suggestions: [
-      `Quels sont les tarifs du ${service.title.toLowerCase()} ?`,
-      `Combien dure le ${service.title.toLowerCase()} ?`,
-      "Comment préparer ma séance ?",
-    ],
-    matches: [],
-  };
-}
-
-function buildServiceAftercareResponse(serviceTarget: ServiceTarget) {
-  const service = getServiceData(serviceTarget.title);
-  const articleId =
-    serviceTarget.key === "tantrique"
-      ? "after-tantrique"
-      : serviceTarget.key === "tonique"
-      ? "after-tonic"
-      : "after-massage";
-  const article = findArticle(articleId);
-
-  const serviceSpecificIntro =
-    serviceTarget.key === "tantrique"
-      ? "Après un massage tantrique, l’idéal est souvent de préserver un peu de calme pour intégrer la séance avec douceur."
-      : serviceTarget.key === "tonique"
-      ? "Après un massage tonique, mieux vaut éviter de repartir immédiatement sur un effort intense et laisser le corps intégrer le travail musculaire."
-      : "Après un massage relaxant tonique, l’idéal est de prolonger un peu le calme, de bien s’hydrater et de laisser le corps garder les effets de la séance.";
-
-  return {
-    type: "knowledge" as const,
-    title: `Après le ${service.title}`,
-    shortAnswer: serviceSpecificIntro,
-    longAnswer: article ? article.body : findEntry("aftercare").longAnswer,
-    article,
-    links: buildServiceLinks(service.title),
-    suggestions: [
-      "Faut-il boire de l’eau après ?",
-      "Peut-on prendre une douche après ?",
-      "Faut-il se reposer après un massage ?",
-    ],
-    matches: [],
-  };
-}
-
-function buildServiceRecommendationResponse(serviceTarget: ServiceTarget) {
-  const service = getServiceData(serviceTarget.title);
-  return {
-    type: "knowledge" as const,
-    title: service.title,
-    shortAnswer: service.description,
-    longAnswer: [
-      ...service.long_description.split("\n\n").slice(0, 2),
-      `Durées proposées : ${Object.keys(service.durations_prices)
-        .map((duration) => formatDurationLabel(Number(duration)))
-        .join(", ")}.`,
-    ],
-    links: buildServiceLinks(service.title),
-    suggestions: [
-      `Quels sont les tarifs du ${service.title.toLowerCase()} ?`,
-      `Combien dure le ${service.title.toLowerCase()} ?`,
-      `Comment se déroule le ${service.title.toLowerCase()} ?`,
-    ],
-    matches: [],
-  };
-}
-
-function buildServiceSportResponse(serviceTarget: ServiceTarget) {
-  if (serviceTarget.key === "tonique") {
-    return {
-      type: "knowledge" as const,
-      title: "Massage tonique et sport",
-      shortAnswer:
-        "Oui, le massage tonique est souvent le plus adapté après le sport si vous cherchez une récupération plus musculaire et un travail plus profond.",
-      longAnswer: findArticle("massage-sport")?.body || findEntry("sport-recovery").longAnswer,
-      article: findArticle("massage-sport"),
-      links: buildServiceLinks("Massage Tonique"),
-      suggestions: [
-        "Que faire après un massage tonique ?",
-        "Combien dure le massage tonique ?",
-      ],
-      matches: [],
-    };
-  }
-
-  if (serviceTarget.key === "relaxant-tonique") {
-    return {
-      type: "knowledge" as const,
-      title: "Massage relaxant tonique et sport",
-      shortAnswer:
-        "Le massage relaxant tonique peut convenir après le sport si vous cherchez à la fois relâcher les tensions et retrouver un peu de fluidité, avec une intensité moins directement axée récupération profonde qu’un tonique pur.",
-      longAnswer: [
-        "Si votre objectif principal est la récupération musculaire appuyée, le massage tonique reste généralement le plus ciblé.",
-        "Si vous voulez relâcher les tensions tout en gardant une dimension apaisante, le massage relaxant tonique peut être une bonne option.",
-      ],
-      links: buildServiceLinks("Massage Relaxant Tonique"),
-      suggestions: [
-        "Quel massage après le sport ?",
-        "Quels sont les tarifs du massage relaxant tonique ?",
-      ],
-      matches: [],
-    };
-  }
-
-  return {
-    type: "knowledge" as const,
-    title: "Massage tantrique et sport",
-    shortAnswer:
-      "Le massage tantrique n’est généralement pas celui que l’on choisit en premier dans une logique de récupération sportive. Il répond plutôt à un besoin de présence, de lenteur et de reconnexion au corps.",
-    longAnswer: [
-      "Après le sport, si vous cherchez avant tout un travail orienté récupération musculaire, le massage tonique sera souvent plus adapté.",
-      "Le massage tantrique peut avoir du sens dans une autre intention, plus sensorielle et introspective.",
-    ],
-    links: buildServiceLinks("Massage Tantrique"),
-    suggestions: [
-      "Quel massage après le sport ?",
-      "Quelle est la différence entre les massages ?",
-    ],
-    matches: [],
-  };
-}
-
-function buildServicePreparationResponse(serviceTarget: ServiceTarget, normalizedQuery: string) {
-  const service = getServiceData(serviceTarget.title);
-  let shortAnswer =
-    `Pour le ${service.title}, l’essentiel est de venir dans une tenue confortable, sans précipitation si possible, et de signaler simplement votre état du moment au début de la séance.`;
-
-  if (normalizedQuery.includes("manger")) {
-    shortAnswer =
-      "Mieux vaut éviter un repas trop lourd juste avant la séance. L’idée est d’arriver le plus confortablement possible.";
-  } else if (
-    normalizedQuery.includes("habille") ||
-    normalizedQuery.includes("habillé") ||
-    normalizedQuery.includes("tenue")
-  ) {
-    shortAnswer =
-      "Une tenue simple et confortable est généralement le meilleur choix pour venir à votre séance.";
-  }
-
-  return {
-    type: "knowledge" as const,
-    title: `Préparer votre ${service.title.toLowerCase()}`,
-    shortAnswer,
-    longAnswer: findEntry("preparation").longAnswer,
-    article: findArticle("prepare-session"),
-    links: buildServiceLinks(service.title),
-    suggestions: [
-      "Comment se passe une première séance ?",
-      `Comment se déroule le ${service.title.toLowerCase()} ?`,
-    ],
-    matches: [],
-  };
-}
-
-function buildGeneralSessionProcessResponse() {
-  return {
-    type: "knowledge" as const,
-    title: "Déroulement d’une séance",
-    shortAnswer:
-      "Une séance commence par un temps d’accueil et d’échange, puis le massage est ajusté à votre rythme, à vos tensions et à votre besoin du moment.",
-    longAnswer: [
-      "Le début de la séance sert à poser un cadre simple et clair : besoin du moment, zones de tension, intensité recherchée, durée et rythme souhaité.",
-      "Vous vous installez ensuite dans un espace calme et la séance se déroule de façon personnalisée.",
-      "Elle se termine par un retour plus posé afin de vous laisser repartir dans un état plus détendu et plus ancré.",
-    ],
-    links: DEFAULT_LINKS,
-    suggestions: [
-      "Quelle est la différence entre les massages ?",
-      "Comment se passe une première séance ?",
-      "Quel massage choisir ?",
-    ],
-    matches: [],
-  };
-}
-
-function buildPreparationResponse(normalizedQuery: string) {
-  const entry = findEntry("preparation");
-  let shortAnswer = entry.shortAnswer;
-
-  if (normalizedQuery.includes("manger")) {
-    shortAnswer =
-      "Il vaut mieux éviter un repas trop lourd juste avant un massage afin d’arriver plus confortablement à la séance.";
-  } else if (
-    normalizedQuery.includes("habille") ||
-    normalizedQuery.includes("habillé") ||
-    normalizedQuery.includes("tenue")
-  ) {
-    shortAnswer =
-      "Une tenue simple et confortable est généralement préférable pour venir à votre séance.";
-  } else if (normalizedQuery.includes("apprehension") || normalizedQuery.includes("appréhension")) {
-    shortAnswer =
-      "C’est tout à fait normal d’avoir un peu d’appréhension. Le temps d’accueil au début sert justement à poser un cadre rassurant et à avancer à votre rythme.";
-  }
-
-  return buildKnowledgeResponse(entry, {
-    shortAnswer,
-    article: findArticle("prepare-session"),
-  });
-}
-
-function buildAftercareResponse(normalizedQuery: string) {
-  const oilsEntry = findEntry("oils-hydration-rest");
-  const aftercareEntry = findEntry("aftercare");
-
-  if (
-    normalizedQuery.includes("eau") ||
-    normalizedQuery.includes("boire")
-  ) {
-    return buildKnowledgeResponse(oilsEntry, {
-      shortAnswer:
-        "Oui, boire de l’eau après un massage est un bon réflexe simple pour rester confortable et prolonger la sensation de fluidité.",
-    });
-  }
-
-  if (
-    normalizedQuery.includes("douche") ||
-    normalizedQuery.includes("reposer") ||
-    normalizedQuery.includes("repos")
-  ) {
-    return buildKnowledgeResponse(oilsEntry);
-  }
-
-  return buildKnowledgeResponse(aftercareEntry, {
-    article: findArticle("after-massage"),
-  });
-}
-
-function buildRecommendationResponse(normalizedQuery: string) {
-  const chooseEntry = findEntry("choose-massage");
-
-  if (normalizedQuery.includes("sportif") || normalizedQuery.includes("sport")) {
-    return {
-      type: "knowledge" as const,
-      title: "Quel massage après le sport ?",
-      shortAnswer:
-        "Si votre besoin principal est la récupération musculaire après le sport, le massage tonique est généralement le plus adapté.",
-      longAnswer: [
-        "Le massage tonique aide davantage à travailler les tensions musculaires et la récupération.",
-        "Si vous cherchez quelque chose de plus équilibré entre détente et relance, le massage relaxant tonique peut aussi convenir.",
-      ],
-      links: DEFAULT_LINKS,
-      suggestions: [
-        "Le massage tonique est-il adapté après le sport ?",
-        "Quels sont les tarifs du massage tonique ?",
-      ],
-      matches: [],
-    };
-  }
-
-  if (normalizedQuery.includes("stress")) {
-    return {
-      type: "knowledge" as const,
-      title: "Massage pour le stress",
-      shortAnswer:
-        "Si votre besoin principal est de relâcher la pression et de retrouver du calme, le massage relaxant tonique est souvent le meilleur point d’entrée.",
-      longAnswer: [
-        "Il combine douceur et relance légère, ce qui convient bien quand le corps et le mental ont besoin de se relâcher sans perdre complètement l’élan.",
-        "Si vous cherchez une approche plus lente et plus centrée sur la sensation, le massage tantrique peut aussi avoir du sens selon votre besoin.",
-      ],
-      links: DEFAULT_LINKS,
-      suggestions: [
-        "Quelle est la différence entre les massages ?",
-        "Quels sont les tarifs du massage relaxant tonique ?",
-      ],
-      matches: [],
-    };
-  }
-
-  if (
-    normalizedQuery.includes("fatigue") ||
-    normalizedQuery.includes("dos") ||
-    normalizedQuery.includes("epaules") ||
-    normalizedQuery.includes("épaules")
-  ) {
-    return {
-      type: "knowledge" as const,
-      title: "Massage pour tensions ou fatigue",
-      shortAnswer:
-        "Si vous sentez surtout des tensions physiques ou une fatigue musculaire, le massage tonique est souvent le plus adapté. Si vous voulez un équilibre entre relâchement et douceur, le relaxant tonique peut aussi convenir.",
-      longAnswer: [
-        "Le bon choix dépend surtout de l’intensité que vous recherchez et de la façon dont votre corps se sent aujourd’hui.",
-        "Si la douleur est importante, s’il y a une blessure ou une situation médicale particulière, mieux vaut en parler avant la séance.",
-      ],
-      links: DEFAULT_LINKS,
-      suggestions: [
-        "Le massage tonique est-il adapté après le sport ?",
-        "Y a-t-il des précautions à prendre ?",
-      ],
-      matches: [],
-    };
-  }
-
-  return buildKnowledgeResponse(chooseEntry);
-}
-
-function buildGenericIntentResponse(intent: QueryIntent, normalizedQuery: string) {
-  if (intent === "difference") {
-    return buildKnowledgeResponse(findEntry("services-difference"));
-  }
-
-  if (intent === "pricing") {
-    return buildKnowledgeResponse(findEntry("pricing"));
-  }
-
-  if (intent === "duration") {
-    return buildKnowledgeResponse(findEntry("duration"));
-  }
-
-  if (intent === "process") {
-    return buildGeneralSessionProcessResponse();
-  }
-
-  if (intent === "preparation") {
-    return buildPreparationResponse(normalizedQuery);
-  }
-
-  if (intent === "aftercare") {
-    return buildAftercareResponse(normalizedQuery);
-  }
-
-  if (intent === "booking") {
-    if (
-      normalizedQuery.includes("aucun creneau") ||
-      normalizedQuery.includes("pas de disponibilite") ||
-      normalizedQuery.includes("indisponible")
-    ) {
-      return buildKnowledgeResponse(findEntry("booking-no-slots"));
-    }
-    return buildKnowledgeResponse(findEntry("booking"));
-  }
-
-  if (intent === "contact") {
-    return buildKnowledgeResponse(findEntry("contact"));
-  }
-
-  if (intent === "contraindications") {
-    return buildKnowledgeResponse(findEntry("contraindications"));
-  }
-
-  if (intent === "frequency") {
-    return buildKnowledgeResponse(findEntry("frequency"), {
-      article: findArticle("frequency"),
-    });
-  }
-
-  if (intent === "sport") {
-    return buildKnowledgeResponse(findEntry("sport-recovery"), {
-      article: findArticle("massage-sport"),
-    });
-  }
-
-  if (intent === "first_session") {
-    return buildKnowledgeResponse(findEntry("first-session"));
-  }
-
-  if (intent === "choose") {
-    return buildRecommendationResponse(normalizedQuery);
-  }
-
-  return null;
-}
-
-function buildServiceSpecificResponse(
-  serviceTarget: ServiceTarget,
-  intent: QueryIntent,
-  normalizedQuery: string,
-  requestedDuration: number | null
-) {
-  if (intent === "pricing") {
-    return buildServicePricingResponse(serviceTarget, requestedDuration);
-  }
-
-  if (intent === "duration") {
-    return buildServiceDurationResponse(serviceTarget, requestedDuration);
-  }
-
-  if (intent === "process") {
-    return buildServiceProcessResponse(serviceTarget);
-  }
-
-  if (intent === "aftercare") {
-    return buildServiceAftercareResponse(serviceTarget);
-  }
-
-  if (intent === "sport") {
-    return buildServiceSportResponse(serviceTarget);
-  }
-
-  if (intent === "preparation" || intent === "first_session") {
-    return buildServicePreparationResponse(serviceTarget, normalizedQuery);
-  }
-
-  return buildServiceRecommendationResponse(serviceTarget);
-}
-
-function fallbackKnowledgeSearch(query: string) {
-  const queryTokens = tokenize(query);
-
-  const ranked = ASSISTANT_KNOWLEDGE_BASE.map((entry) => ({
-    entry,
-    score: scoreEntry(query, queryTokens, entry),
-  }))
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score);
-
-  if (!ranked.length || ranked[0].score < 7) {
-    return null;
-  }
-
-  const topEntry = ranked[0].entry;
-  const matches: AssistantMatch[] = ranked.slice(0, 3).map((item) => ({
-    id: item.entry.id,
-    title: item.entry.title,
-    intent: item.entry.intent,
-    score: item.score,
-  }));
-
-  return buildKnowledgeResponse(topEntry, { matches });
-}
-
-export function resolveAssistantQuery(query: string): AssistantResponse {
-  const normalizedQuery = normalizeText(query);
-  const queryTokens = tokenize(query);
-
-  if (!normalizedQuery) {
-    return buildOutOfScopeResponse();
-  }
-
-  if (
-    MEDICAL_KEYWORDS.some((keyword) =>
-      normalizedQuery.includes(normalizeText(keyword))
-    )
-  ) {
-    if (
-      normalizedQuery.includes("soigne") ||
-      normalizedQuery.includes("remplace") ||
-      normalizedQuery.includes("traitement")
-    ) {
-      return buildMedicalBoundaryResponse();
-    }
-
-    return buildKnowledgeResponse(findEntry("contraindications"));
-  }
-
-  const serviceTarget = detectServiceTarget(query, queryTokens);
-  const { intent } = detectIntent(query, queryTokens);
+  const tokens = tokenize(query);
   const requestedDuration = extractRequestedDuration(query);
 
-  if (serviceTarget) {
-    const serviceResponse = buildServiceSpecificResponse(
-      serviceTarget,
-      intent,
-      normalizedQuery,
-      requestedDuration
-    );
-    if (serviceResponse) {
-      return serviceResponse;
+  const medicalBoundary =
+    intentDetection.intent !== "booking" &&
+    MEDICAL_KEYWORDS.some((keyword) =>
+      normalizedQuery.includes(normalizeText(keyword))
+    ) &&
+    !normalizedQuery.includes("aucun creneau");
+
+  return {
+    query,
+    normalizedQuery,
+    tokens,
+    service,
+    intent: intentDetection.intent,
+    requestedDuration,
+    medicalBoundary,
+  };
+}
+
+export function generateResponse(context: AssistantContext): AssistantResponse {
+  if (
+    context.medicalBoundary &&
+    (context.normalizedQuery.includes("soigne") ||
+      context.normalizedQuery.includes("remplace") ||
+      context.normalizedQuery.includes("traitement"))
+  ) {
+    return buildMedicalBoundaryResponse();
+  }
+
+  if (context.medicalBoundary) {
+    return buildKnowledgeResponse(getKnowledgeEntry("contraindications"));
+  }
+
+  if (context.service) {
+    if (context.intent === "pricing") {
+      return buildServicePricingResponse(context);
     }
+
+    if (context.intent === "duration") {
+      return buildServiceDurationResponse(context);
+    }
+
+    if (context.intent === "process") {
+      return buildServiceProcessResponse(context);
+    }
+
+    if (context.intent === "aftercare") {
+      return buildServiceAftercareResponse(context);
+    }
+
+    if (context.intent === "sport") {
+      return buildServiceSportResponse(context);
+    }
+
+    if (context.intent === "preparation" || context.intent === "first_session") {
+      return buildServicePreparationResponse(context);
+    }
+
+    return buildServiceOverviewResponse(context);
   }
 
-  const genericResponse = buildGenericIntentResponse(intent, normalizedQuery);
-  if (genericResponse) {
-    return genericResponse;
+  const genericIntentResponse = buildGenericIntentResponse(context);
+  if (genericIntentResponse) {
+    return genericIntentResponse;
   }
 
-  const fallbackMatch = fallbackKnowledgeSearch(query);
-  if (fallbackMatch) {
-    return fallbackMatch;
+  const fallbackResponse = fallbackKnowledgeSearch(context.query, context.tokens);
+  if (fallbackResponse) {
+    return fallbackResponse;
   }
 
   return buildOutOfScopeResponse();
+}
+
+export function resolveAssistantQuery(query: string): AssistantResponse {
+  const service = detectService(query);
+  const intentDetection = detectIntent(query);
+  const context = buildContext(service, intentDetection, query);
+  return generateResponse(context);
 }
