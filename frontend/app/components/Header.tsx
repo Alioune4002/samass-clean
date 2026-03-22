@@ -63,14 +63,14 @@ export default function Header() {
           className="flex items-center gap-3 text-2xl font-bold text-forest transition-opacity hover:opacity-90"
         >
           <Image
-            src="/images/samass-logo.jpeg"
+            src="/images/logo.jpg"
             alt="SAMASS"
             width={56}
             height={56}
             className="rounded-full object-cover md:h-14 md:w-14"
           />
           <span className="text-[1.55rem] font-semibold tracking-tight text-forest">
-            SAMASS
+            SAMASS🌿
           </span>
         </Link>
 
