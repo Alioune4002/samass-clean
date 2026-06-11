@@ -133,7 +133,7 @@ function buildMessages(payload: FallbackMailPayload) {
       "Message :",
       payload.client_comment || "Aucun commentaire.",
       "",
-      "⚠️ Cette demande a été envoyée en mode secours (backend indisponible).",
+      "⚠️ Cette demande a été envoyée en mode secours car le serveur est momentanément indisponible.",
       "",
       "Pense à répondre rapidement au client.",
     ].join("\n");
@@ -171,7 +171,7 @@ function buildMessages(payload: FallbackMailPayload) {
           `<strong>Message :</strong><br />${escapeHtml(
             payload.client_comment || "Aucun commentaire."
           )}`,
-          "⚠️ Cette demande a été envoyée en mode secours (backend indisponible).",
+          "⚠️ Cette demande a été envoyée en mode secours car le serveur est momentanément indisponible.",
           "Pense à répondre rapidement au client.",
         ]),
       },
@@ -205,7 +205,7 @@ function buildMessages(payload: FallbackMailPayload) {
     "Message :",
     payload.message,
     "",
-    "⚠️ Message reçu via fallback frontend (backend indisponible).",
+    "Message secours",
   ].join("\n");
 
   return {
@@ -300,7 +300,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Le mode secours email est momentanément indisponible. Merci de contacter SAMASS directement.",
+          "L'envoi d'email est momentanément indisponible. Merci de contacter SAMASS directement via son numéro de téléphone ( 07 45 55 87 31 ) ou l'un de ses adresses email ( samassbysam@gmail.com / contact@samass.com ).",
       },
       { status: 500 }
     );

@@ -75,7 +75,7 @@ export default function ContactPage() {
                 Me joindre directement
               </h2>
               <p className="text-softgray">
-                Pour toute question ou prise de rendez-vous rapide.
+                Pour toute question ou prise de rendez-vous.
               </p>
 
               <div className="flex flex-col gap-3">

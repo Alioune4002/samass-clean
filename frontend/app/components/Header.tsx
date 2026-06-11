@@ -70,7 +70,7 @@ export default function Header() {
             className="rounded-full object-cover md:h-14 md:w-14"
           />
           <span className="text-[1.55rem] font-semibold tracking-tight text-forest">
-            SAMASS🌿
+            SAMASS 🌿
           </span>
         </Link>
 

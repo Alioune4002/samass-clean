@@ -37,7 +37,7 @@ export default function Footer() {
       </div>
 
       <div className="text-center text-xs text-softgray py-4">
-        © {new Date().getFullYear()} SAMASS — Tous droits réservés.
+        © {new Date().getFullYear()} SAMASS by Sam - Tous droits réservés.
       </div>
     </footer>
   );

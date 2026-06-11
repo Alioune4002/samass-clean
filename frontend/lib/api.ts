@@ -41,7 +41,7 @@ async function sendFallbackMail(payload: Record<string, unknown>) {
   if (!response.ok) {
     throw new Error(
       data.error ||
-        "Le mode secours email est momentanement indisponible. Merci de contacter SAMASS directement."
+        "L'envoi de mail est momentanement indisponible. Merci de contacter Sam directement."
     );
   }
 

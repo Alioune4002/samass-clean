@@ -41,7 +41,7 @@ export class ApiError extends Error {
 }
 
 export class BackendUnavailableError extends Error {
-  constructor(message = "Le backend SAMASS est momentanement indisponible.") {
+  constructor(message = "Le serveur SAMASS est momentanement indisponible.") {
     super(message);
     this.name = "BackendUnavailableError";
   }
@@ -50,7 +50,7 @@ export class BackendUnavailableError extends Error {
 export class ManualReservationRequiredError extends Error {
   constructor() {
     super(
-      "La reservation en ligne est momentanement indisponible. Merci de contacter SAMASS via la page Contact, par email ou par telephone."
+      "La reservation en ligne est momentanement indisponible. Merci de contacter Sam via la page Contact, par email ou par telephone."
     );
     this.name = "ManualReservationRequiredError";
   }
