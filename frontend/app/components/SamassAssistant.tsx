@@ -21,16 +21,16 @@ type ChatMessage = UserMessage | AssistantMessage;
 type LauncherPosition = { x: number; y: number };
 
 const LAUNCHER_STORAGE_KEY = "samass_assistant_launcher_position";
-const INTRO_DURATION_MS = 10_000;
+const INTRO_DURATION_MS = 5000;
 const RESPONSE_DELAY_MS = 300;
-const ORB_SIZE = 46;
+const ORB_SIZE = 44;
 
 function createWelcomeResponse(): AssistantResponse {
   return {
     type: "knowledge",
     title: "Assistant SAMASS",
     shortAnswer:
-      "Posez-moi vos questions avant de réserver : choix du massage, durée, tarifs, déroulement ou conseils avant/après séance.",
+      "Posez-moi vos questions avant de réserver : choix du massage, durée, tarifs, déroulement ou conseils.",
     longAnswer: [ASSISTANT_SCOPE_NOTE],
     links: [
       { href: "/services", label: "Voir les massages" },
@@ -50,12 +50,19 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function getDefaultLauncherPosition(): LauncherPosition {
-  if (typeof window === "undefined") return { x: 12, y: 360 };
-
+function getExpandedPosition(): LauncherPosition {
+  if (typeof window === "undefined") return { x: 160, y: 640 };
   return {
-    x: 12,
-    y: Math.round(window.innerHeight * 0.48),
+    x: Math.max(112, window.innerWidth - 238),
+    y: window.innerHeight - 118,
+  };
+}
+
+function getCompactPosition(): LauncherPosition {
+  if (typeof window === "undefined") return { x: 18, y: 640 };
+  return {
+    x: 18,
+    y: window.innerHeight - 118,
   };
 }
 
@@ -71,7 +78,7 @@ function readStoredLauncherPosition(): LauncherPosition | null {
 
     return {
       x: clamp(parsed.x, 8, window.innerWidth - ORB_SIZE - 8),
-      y: clamp(parsed.y, 86, window.innerHeight - ORB_SIZE - 24),
+      y: clamp(parsed.y, 90, window.innerHeight - ORB_SIZE - 24),
     };
   } catch {
     return null;
@@ -79,13 +86,41 @@ function readStoredLauncherPosition(): LauncherPosition | null {
 }
 
 function saveLauncherPosition(position: LauncherPosition) {
-  if (typeof window === "undefined") return;
-
   try {
     window.localStorage.setItem(LAUNCHER_STORAGE_KEY, JSON.stringify(position));
   } catch {
-    // Ignore localStorage errors.
+    // localStorage peut être indisponible.
   }
+}
+
+function AssistantOrb({ compact }: { compact: boolean }) {
+  return (
+    <span
+      className={`samass-orb relative flex shrink-0 items-center justify-center rounded-full ${
+        compact ? "h-11 w-11" : "h-8 w-8"
+      }`}
+    >
+      <span className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-200 via-emerald-600 to-emerald-950 shadow-[inset_0_4px_10px_rgba(255,255,255,0.55),inset_0_-10px_18px_rgba(6,78,59,0.5),0_10px_24px_rgba(5,150,105,0.25)]" />
+      <span className="absolute left-2 top-2 h-3 w-3 rounded-full bg-white/80 blur-[1px]" />
+      <span className="relative text-sm text-white drop-shadow-sm">✦</span>
+    </span>
+  );
+}
+
+function MagicTrail({ active }: { active: boolean }) {
+  return (
+    <span
+      className={`samass-magic-trail pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ${
+        active ? "opacity-100" : "opacity-0"
+      }`}
+    >
+      <span className="trail-line" />
+      <span className="spark spark-1">✦</span>
+      <span className="spark spark-2">✧</span>
+      <span className="spark spark-3">✦</span>
+      <span className="spark spark-4">•</span>
+    </span>
+  );
 }
 
 function AssistantLinkChip({
@@ -198,41 +233,6 @@ function AssistantBubble({
   );
 }
 
-function AssistantOrb({ compact }: { compact: boolean }) {
-  return (
-    <span
-      className={`relative flex items-center justify-center rounded-full transition-all duration-700 ${
-        compact ? "h-[46px] w-[46px]" : "h-9 w-9"
-      }`}
-    >
-      <span className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-200 via-emerald-600 to-emerald-950 shadow-[inset_0_4px_10px_rgba(255,255,255,0.55),inset_0_-10px_18px_rgba(6,78,59,0.5),0_12px_24px_rgba(5,150,105,0.28)]" />
-      <span className="absolute left-2.5 top-2.5 h-3.5 w-3.5 rounded-full bg-white/80 blur-[1px]" />
-      <span className="absolute bottom-1.5 right-1.5 h-4 w-4 rounded-full bg-emerald-950/25 blur-[2px]" />
-      <span className="relative text-base text-white drop-shadow-sm">✦</span>
-    </span>
-  );
-}
-
-function MagicTrail({ active }: { active: boolean }) {
-  return (
-    <span
-      className={`pointer-events-none absolute left-7 top-1/2 h-1 w-24 -translate-y-1/2 rounded-full bg-gradient-to-r from-emerald-200/0 via-emerald-300/70 to-white/0 blur-[2px] transition-opacity duration-700 ${
-        active ? "opacity-100" : "opacity-0"
-      }`}
-    >
-      <span className="absolute left-8 top-[-5px] text-[10px] text-emerald-200 animate-ping">
-        ✦
-      </span>
-      <span className="absolute left-14 top-[3px] text-[8px] text-white animate-pulse">
-        ✧
-      </span>
-      <span className="absolute left-20 top-[-4px] text-[7px] text-emerald-100 animate-pulse">
-        ✦
-      </span>
-    </span>
-  );
-}
-
 export default function SamassAssistant() {
   const pathname = usePathname();
   const shouldHide =
@@ -240,7 +240,7 @@ export default function SamassAssistant() {
 
   const [open, setOpen] = useState(false);
   const [compact, setCompact] = useState(false);
-  const [isRefolding, setIsRefolding] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([createWelcomeMessage()]);
   const [expandedMessages, setExpandedMessages] = useState<Record<string, boolean>>({});
@@ -252,7 +252,7 @@ export default function SamassAssistant() {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const responseTimerRef = useRef<number | null>(null);
   const introTimerRef = useRef<number | null>(null);
-  const trailTimerRef = useRef<number | null>(null);
+  const movingTimerRef = useRef<number | null>(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const movedDuringDragRef = useRef(false);
   const lastPathnameRef = useRef<string | null>(pathname ?? null);
@@ -273,6 +273,7 @@ export default function SamassAssistant() {
 
   function closeAssistant() {
     setOpen(false);
+    setCompact(true);
   }
 
   function openAssistant() {
@@ -281,16 +282,13 @@ export default function SamassAssistant() {
   }
 
   function foldLauncher() {
-    setIsRefolding(true);
+    setMoving(true);
+    setCompact(true);
+    setLauncherPosition(readStoredLauncherPosition() ?? getCompactPosition());
 
-    window.setTimeout(() => {
-      setCompact(true);
-      setLauncherPosition(readStoredLauncherPosition() ?? getDefaultLauncherPosition());
-    }, 120);
-
-    trailTimerRef.current = window.setTimeout(() => {
-      setIsRefolding(false);
-    }, 1150);
+    movingTimerRef.current = window.setTimeout(() => {
+      setMoving(false);
+    }, 1300);
   }
 
   function resetConversation() {
@@ -306,10 +304,7 @@ export default function SamassAssistant() {
   }
 
   function toggleMessageExpansion(id: string) {
-    setExpandedMessages((current) => ({
-      ...current,
-      [id]: !current[id],
-    }));
+    setExpandedMessages((current) => ({ ...current, [id]: !current[id] }));
   }
 
   function pushAssistantResponse(question: string) {
@@ -352,47 +347,37 @@ export default function SamassAssistant() {
   function startDrag(event: ReactPointerEvent<HTMLButtonElement>) {
     if (!compact) return;
 
-    const target = event.currentTarget;
-    const rect = target.getBoundingClientRect();
-
+    const rect = event.currentTarget.getBoundingClientRect();
     movedDuringDragRef.current = false;
+
     dragOffsetRef.current = {
       x: event.clientX - rect.left,
       y: event.clientY - rect.top,
     };
 
     setDragging(true);
-    target.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function moveDrag(event: ReactPointerEvent<HTMLButtonElement>) {
     if (!dragging || !compact) return;
 
     movedDuringDragRef.current = true;
+    setMoving(true);
 
-    const nextPosition = {
-      x: clamp(
-        event.clientX - dragOffsetRef.current.x,
-        8,
-        window.innerWidth - ORB_SIZE - 8
-      ),
-      y: clamp(
-        event.clientY - dragOffsetRef.current.y + ORB_SIZE / 2,
-        86,
-        window.innerHeight - ORB_SIZE - 24
-      ),
-    };
-
-    setLauncherPosition(nextPosition);
+    setLauncherPosition({
+      x: clamp(event.clientX - dragOffsetRef.current.x, 8, window.innerWidth - ORB_SIZE - 8),
+      y: clamp(event.clientY - dragOffsetRef.current.y + ORB_SIZE / 2, 90, window.innerHeight - ORB_SIZE - 24),
+    });
   }
 
   function endDrag() {
     if (!dragging) return;
-    setDragging(false);
 
-    if (launcherPosition) {
-      saveLauncherPosition(launcherPosition);
-    }
+    setDragging(false);
+    setMoving(false);
+
+    if (launcherPosition) saveLauncherPosition(launcherPosition);
   }
 
   function handleLauncherClick() {
@@ -405,30 +390,23 @@ export default function SamassAssistant() {
   }
 
   useEffect(() => {
-    setLauncherPosition(readStoredLauncherPosition() ?? getDefaultLauncherPosition());
-  }, []);
-
-  useEffect(() => {
-    if (open || compact) return;
+    const expanded = getExpandedPosition();
+    setLauncherPosition(expanded);
 
     introTimerRef.current = window.setTimeout(() => {
       foldLauncher();
     }, INTRO_DURATION_MS);
 
     return () => {
-      if (introTimerRef.current) {
-        window.clearTimeout(introTimerRef.current);
-        introTimerRef.current = null;
-      }
+      if (introTimerRef.current) window.clearTimeout(introTimerRef.current);
     };
-  }, [open, compact]);
+  }, []);
 
   useEffect(() => {
     if (!pathname) return;
 
     if (lastPathnameRef.current && lastPathnameRef.current !== pathname) {
       closeAssistant();
-      setCompact(true);
     }
 
     lastPathnameRef.current = pathname;
@@ -492,16 +470,116 @@ export default function SamassAssistant() {
     return () => {
       if (responseTimerRef.current) window.clearTimeout(responseTimerRef.current);
       if (introTimerRef.current) window.clearTimeout(introTimerRef.current);
-      if (trailTimerRef.current) window.clearTimeout(trailTimerRef.current);
+      if (movingTimerRef.current) window.clearTimeout(movingTimerRef.current);
     };
   }, []);
 
-  if (shouldHide) return null;
-
-  const compactPosition = launcherPosition ?? getDefaultLauncherPosition();
+  if (shouldHide || !launcherPosition) return null;
 
   return (
     <>
+      <style jsx global>{`
+        .samass-orb {
+          animation: samassOrbFloat 3.8s ease-in-out infinite;
+        }
+
+        .samass-magic-trail {
+          width: 96px;
+          height: 34px;
+          transition: opacity 360ms ease;
+        }
+
+        .samass-magic-trail .trail-line {
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          width: 92px;
+          height: 4px;
+          transform: translateY(-50%);
+          border-radius: 999px;
+          background: linear-gradient(
+            90deg,
+            rgba(16, 185, 129, 0.55),
+            rgba(167, 243, 208, 0.45),
+            rgba(255, 255, 255, 0)
+          );
+          filter: blur(3px);
+          animation: samassTrailFade 1.15s ease-out infinite;
+        }
+
+        .samass-magic-trail .spark {
+          position: absolute;
+          color: rgba(209, 250, 229, 0.95);
+          text-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+          animation: samassSpark 1.2s ease-out infinite;
+        }
+
+        .spark-1 {
+          right: 24px;
+          top: 6px;
+          font-size: 9px;
+        }
+
+        .spark-2 {
+          right: 46px;
+          top: 18px;
+          font-size: 8px;
+          animation-delay: 140ms;
+        }
+
+        .spark-3 {
+          right: 68px;
+          top: 9px;
+          font-size: 7px;
+          animation-delay: 260ms;
+        }
+
+        .spark-4 {
+          right: 84px;
+          top: 22px;
+          font-size: 10px;
+          animation-delay: 380ms;
+        }
+
+        @keyframes samassOrbFloat {
+          0%,
+          100% {
+            transform: translateY(0) scale(1);
+          }
+          50% {
+            transform: translateY(-3px) scale(1.035);
+          }
+        }
+
+        @keyframes samassTrailFade {
+          0% {
+            transform: translateY(-50%) scaleX(0.55);
+            opacity: 0;
+          }
+          35% {
+            opacity: 0.9;
+          }
+          100% {
+            transform: translateY(-50%) scaleX(1);
+            opacity: 0;
+          }
+        }
+
+        @keyframes samassSpark {
+          0% {
+            transform: translateX(18px) scale(0.7);
+            opacity: 0;
+          }
+          30% {
+            opacity: 1;
+          }
+          100% {
+            transform: translateX(-18px) translateY(-5px) scale(0.2);
+            opacity: 0;
+          }
+        }
+      `}</style>
+
       {!open ? (
         <button
           type="button"
@@ -511,38 +589,31 @@ export default function SamassAssistant() {
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           aria-label="Ouvrir l'assistant SAMASS"
-          className={`group fixed isolate select-none touch-none transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`group fixed isolate select-none touch-none transition-all duration-[1200ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
             compact
               ? "z-30"
-              : "z-30 rounded-full border border-emerald-500/60 bg-emerald-600/95 px-3 py-2.5 text-white shadow-[0_14px_34px_rgba(5,150,105,0.24)]"
+              : "z-30 rounded-full border border-emerald-500/50 bg-emerald-600/95 px-3 py-2 text-white shadow-[0_12px_28px_rgba(5,150,105,0.22)]"
           } ${dragging ? "cursor-grabbing transition-none" : "cursor-pointer"}`}
-          style={
-            compact
-              ? {
-                  left: compactPosition.x,
-                  top: compactPosition.y,
-                  transform: "translateY(-50%)",
-                }
-              : {
-                  right: 18,
-                  bottom: 104,
-                }
-          }
+          style={{
+            left: launcherPosition.x,
+            top: launcherPosition.y,
+            transform: compact ? "translateY(-50%)" : "translateY(-50%)",
+          }}
         >
           {compact ? (
             <span className="relative block">
-              <MagicTrail active={isRefolding || dragging} />
+              <MagicTrail active={moving || dragging} />
               <AssistantOrb compact />
             </span>
           ) : (
-            <span className="flex max-w-[260px] items-center gap-2.5">
+            <span className="flex max-w-[205px] items-center gap-2.5">
               <AssistantOrb compact={false} />
               <span className="flex flex-col items-start text-left">
-                <span className="text-[13px] font-semibold leading-none">
+                <span className="text-[12px] font-semibold leading-none">
                   Assistant SAMASS
                 </span>
-                <span className="mt-1 max-w-[170px] text-[11px] leading-snug text-white/85">
-                  Posez-moi vos questions avant de réserver.
+                <span className="mt-1 max-w-[140px] text-[10px] leading-snug text-white/82">
+                  Posez-moi vos questions.
                 </span>
               </span>
             </span>
@@ -572,10 +643,7 @@ export default function SamassAssistant() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-600">
                       Assistant SAMASS
                     </p>
-                    <h2
-                      id="samass-assistant-title"
-                      className="mt-1 text-lg font-semibold text-slate-950"
-                    >
+                    <h2 id="samass-assistant-title" className="mt-1 text-lg font-semibold text-slate-950">
                       Posez votre question
                     </h2>
                     <p className="mt-1 text-sm leading-6 text-slate-500">
