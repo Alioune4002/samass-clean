@@ -12,7 +12,7 @@ import { useParams, useRouter } from "next/navigation";
 export default function BookingDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const id = Number(params?.id);
+  const id = String(params?.id || "");
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,7 +60,7 @@ export default function BookingDetailPage() {
 
   return (
     <div className="text-white space-y-6">
-      <h1 className="text-3xl font-bold">Réservation #{booking.id}</h1>
+      <h1 className="text-3xl font-bold">Demande de réservation</h1>
 
       {/* CARD */}
       <div className="bg-[#1A1A1A] border border-gray-800 p-6 rounded-xl space-y-3 shadow-xl">
