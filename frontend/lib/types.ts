@@ -21,7 +21,7 @@ export type Availability = {
 export type BookingStatus = "pending" | "confirmed" | "canceled";
 
 export type Booking = {
-  id: number;
+  id: string | number;
   service: Service;
   availability: Availability;
   client_name: string;
