@@ -11,7 +11,7 @@ import {
   saveLocalAvailabilities,
   saveLocalServices,
 } from "./fallbackStore";
-import { enrichServicesForDisplay } from "./serviceCatalog";
+import { buildFallbackServices, enrichServicesForDisplay } from "./serviceCatalog";
 import { Availability, Booking, Service } from "./types";
 
 type BookingRequestResult =
@@ -54,18 +54,7 @@ async function sendFallbackMail(payload: Record<string, unknown>) {
 }
 
 export async function getServices(): Promise<Service[]> {
-  try {
-    const services = enrichServicesForDisplay(
-      await requestJson<Service[]>("/services/")
-    );
-    saveLocalServices(services);
-    return services;
-  } catch (error) {
-    if (isBackendUnavailableError(error)) {
-      return enrichServicesForDisplay(getLocalServices());
-    }
-    throw error;
-  }
+  return enrichServicesForDisplay(buildFallbackServices());
 }
 
 export async function createAvailability(data: {
