@@ -54,7 +54,17 @@ async function sendFallbackMail(payload: Record<string, unknown>) {
 }
 
 export async function getServices(): Promise<Service[]> {
-  return enrichServicesForDisplay(buildFallbackServices());
+  try {
+    const response = await fetch("/api/services", {
+      method: "GET",
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error("Catalogue indisponible.");
+    const services = (await response.json()) as Service[];
+    return enrichServicesForDisplay(services);
+  } catch {
+    return enrichServicesForDisplay(buildFallbackServices());
+  }
 }
 
 export async function createAvailability(data: {
