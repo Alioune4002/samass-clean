@@ -1,78 +1,129 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
-import CardService from "../components/CardService";
 import { getServices } from "@/lib/api";
 import { Service } from "@/lib/types";
-import Skeleton from "../components/ui/Skeleton";
+import ReservationButton from "../components/ReservationButton";
+
+const serviceImages: Record<string, string> = {
+  "Massage Relaxant Tonique": "/images/relax-massage.jpeg",
+  "Massage Tonique": "/images/tonic-massage.jpeg",
+  "Massage Tantrique": "/images/tantric-massage.jpeg",
+};
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const data = await getServices();
-        setServices(data);
-      } catch (e) {
-        console.error("Erreur chargement services :", e);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
+    void getServices().then(setServices).catch(() => setServices([]));
   }, []);
 
   return (
-    <div>
-      <section className="bg-pastel py-20 text-center">
-        <h1 className="text-4xl font-bold text-forest mb-4">Mes Massages</h1>
-        <p className="text-softgray max-w-xl mx-auto">
-          Des expériences adaptées à votre énergie du moment.
-        </p>
+    <div className="bg-[#0d1d18] text-[#f4f0e8]">
+      <section className="min-h-[82svh] px-[5vw] pb-[10vh] pt-[22vh]">
+        <p className="samass-kicker text-white/40">MASSAGES · SAMASS</p>
+        <h1 className="mt-8 max-w-[1250px] text-[clamp(72px,12vw,185px)] font-extrabold uppercase leading-[.74] tracking-[-.085em]">
+          Votre corps.
+          <br />
+          <span className="ml-[13vw] font-[Georgia] font-normal italic normal-case text-[#d7c5a8]">
+            Votre rythme.
+          </span>
+        </h1>
+        <div className="ml-auto mt-16 max-w-xl text-[17px] leading-7 text-white/55">
+          Trois approches, aucune séance standardisée. Vous choisissez une
+          direction ; le massage s’adapte ensuite à votre état, à vos tensions
+          et à ce que vous avez besoin de retrouver.
+        </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-6 py-16">
-        {loading ? (
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="rounded-2xl border border-emerald-50 bg-white p-5 shadow-sm"
-              >
-                <Skeleton className="h-6 w-2/3 mb-3" />
-                <Skeleton className="h-4 w-full mb-2" />
-                <Skeleton className="h-4 w-5/6 mb-2" />
-                <Skeleton className="h-4 w-2/3" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-            {services.map((s) => (
-              <CardService
-                key={s.id}
-                title={s.title}
-                description={s.description}
-                longDescription={s.long_description}
-                formulas={Object.entries(s.durations_prices).map(
-                  ([duration, price]) => ({
-                    duration: duration + " min",
-                    price,
-                  })
-                )}
-                serviceId={s.id}
-              />
-            ))}
-            {!services.length && (
-              <p className="text-center text-gray-500 col-span-full">
-                Aucun service n&apos;est disponible pour le moment.
+      <section className="border-t border-white/15 px-[4vw]">
+        {services.map((service, index) => (
+          <article
+            key={service.id}
+            className="grid gap-8 border-b border-white/15 py-12 lg:grid-cols-[70px_1fr_.75fr]"
+          >
+            <span className="text-[10px] tracking-[.16em] text-white/30">
+              0{index + 1}
+            </span>
+
+            <div>
+              <h2 className="max-w-3xl text-[clamp(52px,7vw,105px)] font-bold uppercase leading-[.82] tracking-[-.07em]">
+                {service.title.replace("Massage ", "")}
+              </h2>
+              <p className="mt-8 max-w-xl text-[16px] leading-7 text-white/55">
+                {service.description}
               </p>
-            )}
-          </div>
-        )}
+
+              <div className="mt-10 grid max-w-xl border-t border-white/15">
+                {Object.entries(service.durations_prices).map(
+                  ([duration, price]) => (
+                    <div
+                      key={duration}
+                      className="flex items-center justify-between border-b border-white/15 py-4 text-[11px] uppercase tracking-[.14em]"
+                    >
+                      <span>{duration} minutes</span>
+                      <span>{Number(price).toFixed(0)} €</span>
+                    </div>
+                  )
+                )}
+              </div>
+
+              {service.long_description && (
+                <details className="mt-8 max-w-xl border-b border-white/15 pb-5">
+                  <summary className="cursor-pointer list-none text-[11px] font-bold uppercase tracking-[.14em] text-white/65">
+                    Déroulement de la séance +
+                  </summary>
+                  <div className="mt-5 space-y-4 text-sm leading-7 text-white/50">
+                    {service.long_description
+                      .split("\n\n")
+                      .map((paragraph, paragraphIndex) => (
+                        <p key={paragraphIndex}>{paragraph}</p>
+                      ))}
+                  </div>
+                </details>
+              )}
+
+              <div className="mt-8 max-w-sm">
+                <ReservationButton serviceId={service.id} />
+              </div>
+            </div>
+
+            <div className="relative min-h-[52vh] overflow-hidden bg-[#172a23]">
+              <Image
+                src={
+                  service.image ||
+                  serviceImages[service.title] ||
+                  "/images/about3.png"
+                }
+                alt={service.title}
+                fill
+                sizes="(max-width: 1024px) 100vw, 38vw"
+                className="object-cover saturate-[.65]"
+              />
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <section className="bg-[#e2d8ca] px-[5vw] py-[16vh] text-[#101512]">
+        <p className="samass-kicker text-black/45">VOUS HÉSITEZ ?</p>
+        <div className="mt-8 grid gap-10 lg:grid-cols-[1.3fr_.7fr] lg:items-end">
+          <h2 className="text-[clamp(62px,9vw,140px)] font-bold uppercase leading-[.8] tracking-[-.075em]">
+            Commencez par
+            <br />
+            ce que vous
+            <br />
+            <span className="font-[Georgia] font-normal italic normal-case text-[#356c59]">
+              ressentez.
+            </span>
+          </h2>
+          <p className="max-w-md text-lg leading-8 text-black/60">
+            Fatigue, stress, tension musculaire, besoin de ralentir ou envie
+            d’une expérience plus sensorielle : dites simplement où vous en
+            êtes. Sam vous aide à choisir.
+          </p>
+        </div>
       </section>
     </div>
   );
