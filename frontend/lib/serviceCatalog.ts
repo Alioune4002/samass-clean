@@ -83,9 +83,12 @@ export function enrichServiceForDisplay(service: Service): Service {
 
   return {
     ...service,
-    description: catalogEntry.description,
-    long_description: catalogEntry.long_description,
-    durations_prices: { ...catalogEntry.durations_prices },
+    description: service.description || catalogEntry.description,
+    long_description: service.long_description || catalogEntry.long_description,
+    durations_prices:
+      service.durations_prices && Object.keys(service.durations_prices).length
+        ? { ...service.durations_prices }
+        : { ...catalogEntry.durations_prices },
     image: service.image || catalogEntry.image,
   };
 }
