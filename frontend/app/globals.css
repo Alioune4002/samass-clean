@@ -2112,3 +2112,122 @@ a {
     flex-direction: column;
   }
 }
+
+
+/* V2.1 — SAMASS brand green, without losing the ritual direction */
+.ritual-site {
+  --ritual-green: #0f5a43;
+  --ritual-green-deep: #0a3d31;
+  --ritual-green-soft: #b9cec2;
+  --ritual-cream: #f2ede4;
+}
+
+.ritual-primary-link,
+.ritual-booking-button,
+.ritual-assistant-form button {
+  background: var(--ritual-green);
+  color: #f8f4ed;
+}
+
+.ritual-primary-link:hover,
+.ritual-booking-button:hover,
+.ritual-assistant-form button:hover {
+  background: var(--ritual-green-deep);
+}
+
+.ritual-recommendation {
+  background:
+    radial-gradient(circle at 88% 12%, rgba(15,90,67,.12), transparent 30%),
+    #dce3dc;
+}
+
+.ritual-need-picker button.is-active {
+  color: var(--ritual-green-deep);
+}
+
+.ritual-need-picker button.is-active .ritual-need-dot {
+  background: var(--ritual-green);
+  border-color: var(--ritual-green);
+}
+
+.ritual-breath-mark span,
+.ritual-step-pulse,
+.ritual-step-pulse::after,
+.ritual-assistant-symbol i {
+  border-color: rgba(15,90,67,.44);
+}
+
+.ritual-massages {
+  background: #0b3f32;
+}
+
+.ritual-massage-card {
+  background: #18513f;
+}
+
+.ritual-massage-card:hover {
+  background: #1d5d49;
+}
+
+.ritual-massage-card:first-child {
+  box-shadow: inset 0 0 0 1px rgba(210,229,218,.24), 0 28px 70px rgba(0,0,0,.12);
+}
+
+.ritual-featured-label {
+  display: inline-flex;
+  width: max-content;
+  margin-bottom: 14px;
+  padding: 7px 10px;
+  border: 1px solid rgba(231,242,235,.28);
+  border-radius: 999px;
+  background: rgba(231,242,235,.10);
+  color: #e8f3ec;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.ritual-header.is-scrolled .ritual-header-booking {
+  background: var(--ritual-green);
+}
+
+.ritual-brand-mark i {
+  border-color: currentColor;
+}
+
+.ritual-assistant-launcher {
+  border-color: rgba(15,90,67,.16);
+}
+
+.ritual-assistant-launcher strong,
+.ritual-assistant-label {
+  color: var(--ritual-green-deep);
+}
+
+.ritual-assistant-user {
+  background: var(--ritual-green-deep);
+}
+
+.ritual-assistant-answer {
+  background: #e0e7e1;
+}
+
+.ritual-assistant-guides button:hover,
+.ritual-assistant-followups button:hover {
+  border-color: rgba(15,90,67,.28);
+  color: var(--ritual-green-deep);
+}
+
+.ritual-closing-card,
+.ritual-footer {
+  background: #092f27;
+}
+
+.ritual-place {
+  background: #dce2dc;
+}
+
+.ritual-place-detail {
+  border-color: #dce2dc;
+}
