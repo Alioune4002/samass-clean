@@ -2,10 +2,53 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getServices } from "@/lib/api";
 import { Service } from "@/lib/types";
 import ReservationButton from "./components/ReservationButton";
+
+type NeedKey = "calm" | "tension" | "energy" | "sensation";
+
+const needs: Array<{
+  key: NeedKey;
+  label: string;
+  prompt: string;
+  target: string;
+  reason: string;
+}> = [
+  {
+    key: "calm",
+    label: "J’ai besoin de ralentir",
+    prompt: "Mental chargé, fatigue nerveuse, besoin de souffler.",
+    target: "Massage Relaxant Tonique",
+    reason:
+      "Un bon point d’entrée pour relâcher la pression tout en gardant une sensation de fluidité et d’ancrage.",
+  },
+  {
+    key: "tension",
+    label: "Je suis tendu·e",
+    prompt: "Dos, épaules, jambes ou fatigue musculaire.",
+    target: "Massage Tonique",
+    reason:
+      "Une approche plus appuyée, pensée pour travailler les zones qui ont accumulé de la tension.",
+  },
+  {
+    key: "energy",
+    label: "Je veux retrouver de l’énergie",
+    prompt: "Corps lourd, baisse de tonus, besoin de relance.",
+    target: "Massage Tonique",
+    reason:
+      "Le rythme plus dynamique aide à retrouver une sensation de mouvement, de circulation et d’élan.",
+  },
+  {
+    key: "sensation",
+    label: "Je veux me reconnecter",
+    prompt: "Besoin de lenteur, de présence et de sensations.",
+    target: "Massage Tantrique",
+    reason:
+      "Une expérience plus lente et sensorielle, centrée sur la présence au corps et le ressenti du moment.",
+  },
+];
 
 const serviceImages: Record<string, string> = {
   "Massage Relaxant Tonique": "/images/relax-massage.jpeg",
@@ -13,116 +56,181 @@ const serviceImages: Record<string, string> = {
   "Massage Tantrique": "/images/tantric-massage.jpeg",
 };
 
-const testimonials = [
+const notes = [
   {
-    quote:
-      "On ne vient pas seulement chercher un massage. On repart avec la sensation d’avoir enfin ralenti.",
-    author: "Maxime L.",
+    text: "J’ai senti que la séance s’adaptait vraiment à moi, pas l’inverse.",
+    author: "Maxime",
   },
   {
-    quote:
-      "Présence, écoute, précision. La séance s’adapte vraiment à ce que le corps demande ce jour-là.",
-    author: "Alex T.",
+    text: "Le plus marquant, c’est la sensation de calme qui reste après.",
+    author: "Alex",
   },
   {
-    quote:
-      "Une expérience très différente des massages standardisés. Ici, on sent qu’il y a une vraie attention.",
-    author: "Florian B.",
+    text: "Simple, rassurant, très humain. Je suis reparti beaucoup plus léger.",
+    author: "Florian",
   },
 ];
 
 export default function HomePage() {
   const [services, setServices] = useState<Service[]>([]);
+  const [selectedNeed, setSelectedNeed] = useState<NeedKey>("calm");
 
   useEffect(() => {
     void getServices().then(setServices).catch(() => setServices([]));
   }, []);
 
+  useEffect(() => {
+    const nodes = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-ritual-reveal]")
+    );
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      { threshold: 0.15 }
+    );
+
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, []);
+
+  const need = needs.find((item) => item.key === selectedNeed) ?? needs[0];
+
+  const recommendedService = useMemo(
+    () => services.find((service) => service.title === need.target) ?? null,
+    [need.target, services]
+  );
+
   return (
-    <div className="samass-site">
-      <section className="samass-hero">
-        <div className="samass-hero-media" aria-hidden="true">
+    <div className="ritual-site">
+      <section className="ritual-hero">
+        <div className="ritual-hero-photo">
           <Image
             src="/images/about1.jpg"
-            alt=""
+            alt="Atmosphère SAMASS"
             fill
             priority
             sizes="100vw"
             className="object-cover"
           />
-          <div className="samass-hero-overlay" />
+          <div className="ritual-hero-photo-shade" />
         </div>
 
-        <div className="samass-hero-grain" aria-hidden="true" />
-
-        <div className="samass-hero-copy">
-          <p className="samass-kicker">MASSAGE · QUIMPER · SUR-MESURE</p>
+        <div className="ritual-hero-card">
+          <p className="ritual-eyebrow">SAMASS · MASSAGE À QUIMPER</p>
           <h1>
-            Revenir
-            <span>à soi.</span>
+            Un moment où
+            <br />
+            personne ne vous
+            <br />
+            demande rien.
           </h1>
+          <p className="ritual-hero-intro">
+            Une parenthèse simple, chaude et sur-mesure pour laisser le corps
+            redescendre à son propre rythme.
+          </p>
 
-          <div className="samass-hero-bottom">
-            <p>
-              Un espace pour relâcher le bruit, retrouver ses sensations et
-              laisser le corps reprendre sa place.
-            </p>
-            <Link href="/reservation" className="samass-arrow-link">
-              Demander un rendez-vous <span>↗</span>
+          <div className="ritual-hero-actions">
+            <Link href="/reservation" className="ritual-primary-link">
+              Demander un rendez-vous
+              <span>↗</span>
+            </Link>
+            <Link href="/services" className="ritual-quiet-link">
+              Voir les massages
             </Link>
           </div>
         </div>
 
-        <div className="samass-hero-mark" aria-hidden="true">
-          S
+        <div className="ritual-hero-caption">
+          <span>Quimper · Finistère</span>
+          <span>Sur rendez-vous</span>
         </div>
-
-        <div className="samass-scroll-note">DÉFILER ↓</div>
       </section>
 
-      <section className="samass-manifesto">
-        <p className="samass-kicker">L’INTENTION</p>
-        <div>
+      <section className="ritual-needs" data-ritual-reveal>
+        <div className="ritual-section-intro">
+          <p className="ritual-eyebrow">COMMENCER PAR VOUS</p>
+          <h2>Comment arrive votre corps aujourd’hui&nbsp;?</h2>
           <p>
-            LE CORPS N’A PAS TOUJOURS BESOIN
-            <br />
-            QU’ON LUI EN DEMANDE <span>PLUS.</span>
+            Pas besoin de connaître les techniques. Commencez simplement par
+            ce que vous ressentez.
           </p>
-          <p className="samass-manifesto-shift">
-            PARFOIS, IL A BESOIN
-            <br />
-            QU’ON L’ÉCOUTE <em>MIEUX.</em>
-          </p>
+        </div>
+
+        <div className="ritual-needs-layout">
+          <div className="ritual-need-picker" role="tablist" aria-label="Votre besoin">
+            {needs.map((item) => {
+              const active = item.key === selectedNeed;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSelectedNeed(item.key)}
+                  className={active ? "is-active" : ""}
+                >
+                  <span className="ritual-need-dot" />
+                  <span>
+                    <strong>{item.label}</strong>
+                    <small>{item.prompt}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="ritual-recommendation">
+            <div className="ritual-breath-mark" aria-hidden="true">
+              <span />
+              <span />
+            </div>
+            <p className="ritual-eyebrow">ORIENTATION SAMASS</p>
+            <h3>{recommendedService?.title ?? need.target}</h3>
+            <p>{need.reason}</p>
+
+            {recommendedService ? (
+              <>
+                <div className="ritual-price-line">
+                  {Object.entries(recommendedService.durations_prices).map(
+                    ([duration, price]) => (
+                      <span key={duration}>
+                        {duration} min · {Number(price).toFixed(0)} €
+                      </span>
+                    )
+                  )}
+                </div>
+                <ReservationButton serviceId={recommendedService.id} />
+              </>
+            ) : (
+              <Link href="/services" className="ritual-primary-link dark">
+                Découvrir ce massage <span>↗</span>
+              </Link>
+            )}
+          </div>
         </div>
       </section>
 
-      <section className="samass-services">
-        <header className="samass-section-head">
-          <p className="samass-kicker">LES MASSAGES</p>
-          <div>
-            <h2>
-              Trois façons
-              <br />
-              de <em>revenir.</em>
-            </h2>
-            <p>
-              Pas de protocole figé. Le rythme, la pression et l’intention se
-              construisent selon votre état du moment.
-            </p>
-          </div>
-        </header>
+      <section className="ritual-massages" data-ritual-reveal>
+        <div className="ritual-section-intro ritual-section-intro-light">
+          <p className="ritual-eyebrow">LES MASSAGES</p>
+          <h2>Une intention avant une technique.</h2>
+          <p>
+            La séance commence par une direction, puis elle évolue selon votre
+            corps, vos réactions et votre niveau de confort.
+          </p>
+        </div>
 
-        <div className="samass-service-list">
-          {(services.length ? services : []).map((service, index) => (
-            <article key={service.id} className="samass-service-row">
-              <div className="samass-service-index">0{index + 1}</div>
-
-              <div className="samass-service-title">
-                <h3>{service.title.replace("Massage ", "")}</h3>
-                <p>{service.description}</p>
-              </div>
-
-              <div className="samass-service-visual">
+        <div className="ritual-massage-cards">
+          {services.map((service) => (
+            <article key={service.id} className="ritual-massage-card">
+              <div className="ritual-massage-image">
                 <Image
                   src={
                     service.image ||
@@ -131,154 +239,128 @@ export default function HomePage() {
                   }
                   alt={service.title}
                   fill
-                  sizes="(max-width: 800px) 100vw, 40vw"
+                  sizes="(max-width: 900px) 100vw, 33vw"
                   className="object-cover"
                 />
               </div>
 
-              <div className="samass-service-meta">
-                <div>
+              <div className="ritual-massage-copy">
+                <h3>{service.title.replace("Massage ", "")}</h3>
+                <p>{service.description}</p>
+
+                <div className="ritual-price-line">
                   {Object.entries(service.durations_prices).map(
                     ([duration, price]) => (
                       <span key={duration}>
-                        {duration} MIN · {Number(price).toFixed(0)} €
+                        {duration} min · {Number(price).toFixed(0)} €
                       </span>
                     )
                   )}
                 </div>
+
                 <ReservationButton serviceId={service.id} />
               </div>
             </article>
           ))}
-
-          {!services.length && (
-            <>
-              {[
-                ["Relaxant Tonique", "Douceur, respiration et relance."],
-                ["Tonique", "Travail plus profond et énergie retrouvée."],
-                ["Tantrique", "Présence, lenteur et reconnexion sensorielle."],
-              ].map(([title, description], index) => (
-                <article key={title} className="samass-service-row is-loading">
-                  <div className="samass-service-index">0{index + 1}</div>
-                  <div className="samass-service-title">
-                    <h3>{title}</h3>
-                    <p>{description}</p>
-                  </div>
-                </article>
-              ))}
-            </>
-          )}
         </div>
       </section>
 
-      <section className="samass-experience">
-        <div className="samass-experience-image">
-          <Image
-            src="/images/about3.png"
-            alt="Atmosphère SAMASS"
-            fill
-            sizes="(max-width: 900px) 100vw, 55vw"
-            className="object-cover"
-          />
-        </div>
-
-        <div className="samass-experience-copy">
-          <p className="samass-kicker">UNE SÉANCE CHEZ SAMASS</p>
-          <h2>
-            Rien à
-            <br />
-            <em>performer.</em>
-          </h2>
+      <section className="ritual-session" data-ritual-reveal>
+        <div className="ritual-session-copy">
+          <p className="ritual-eyebrow">LE RITUEL</p>
+          <h2>La séance prend le temps qu’il faut pour commencer.</h2>
           <p>
-            Vous arrivez comme vous êtes. On commence par quelques minutes
-            d’échange pour comprendre ce dont vous avez besoin, puis la séance
-            se construit autour de votre respiration, de vos tensions et de
-            votre rythme.
+            Vous n’arrivez pas sur une table avec un protocole déjà décidé.
+            Quelques minutes suffisent pour comprendre votre besoin et poser
+            un cadre clair.
           </p>
-
-          <div className="samass-experience-points">
-            <span>01 · ÉCHANGE</span>
-            <span>02 · ÉCOUTE DU CORPS</span>
-            <span>03 · MASSAGE SUR-MESURE</span>
-            <span>04 · RETOUR AU CALME</span>
-          </div>
         </div>
-      </section>
 
-      <section className="samass-quote">
-        <p className="samass-kicker">L’APPROCHE</p>
-        <blockquote>
-          « Le bon massage n’impose rien.
-          <br />
-          Il crée l’espace pour que le corps
-          <br />
-          <em>cesse enfin de résister.</em> »
-        </blockquote>
-        <div className="samass-signature">
-          <span>SAM</span>
-          <p>Présence · écoute · adaptation</p>
-        </div>
-      </section>
-
-      <section className="samass-testimonials">
-        <header>
-          <p className="samass-kicker">ILS SONT VENUS POUR SOUFFLER</p>
-          <h2>
-            Ce qu’ils
-            <br />
-            en <em>gardent.</em>
-          </h2>
-        </header>
-
-        <div className="samass-testimonial-grid">
-          {testimonials.map((item, index) => (
-            <article key={item.author}>
-              <span>0{index + 1}</span>
-              <p>“{item.quote}”</p>
-              <strong>{item.author}</strong>
+        <div className="ritual-steps">
+          {[
+            ["On échange", "Besoin du moment, zones de tension, intensité souhaitée."],
+            ["Le corps guide", "Le rythme et la pression évoluent selon vos sensations."],
+            ["On redescend", "La séance se termine doucement pour laisser le corps revenir."],
+          ].map(([title, text], index) => (
+            <article key={title}>
+              <div className="ritual-step-pulse">
+                <span>{index + 1}</span>
+              </div>
+              <div>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </div>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="samass-local">
-        <div>
-          <p className="samass-kicker">QUIMPER · FINISTÈRE</p>
-          <h2>
-            Un lieu pour
-            <br />
-            disparaître
-            <br />
-            <em>un instant.</em>
-          </h2>
+      <section className="ritual-place" data-ritual-reveal>
+        <div className="ritual-place-images">
+          <div className="ritual-place-main">
+            <Image
+              src="/images/about3.png"
+              alt="Espace de massage SAMASS"
+              fill
+              sizes="(max-width: 900px) 100vw, 58vw"
+              className="object-cover"
+            />
+          </div>
+          <div className="ritual-place-detail">
+            <Image
+              src="/images/about1.jpg"
+              alt="Détail de l’espace SAMASS"
+              fill
+              sizes="(max-width: 900px) 45vw, 26vw"
+              className="object-cover"
+            />
+          </div>
         </div>
-        <div className="samass-local-copy">
+
+        <div className="ritual-place-copy">
+          <p className="ritual-eyebrow">LE LIEU</p>
+          <h2>Un espace simple, préparé pour ralentir.</h2>
           <p>
-            Une séance SAMASS n’est pas pensée comme une case de plus dans
-            votre journée. C’est une coupure nette, un moment protégé, sans
-            pression ni performance.
+            Lumière douce, linge propre, chaleur, calme. Rien de spectaculaire :
+            juste ce qu’il faut pour que le reste puisse se mettre en retrait.
           </p>
-          <Link href="/about" className="samass-text-link">
-            Découvrir l’approche ↗
+          <Link href="/about" className="ritual-quiet-link dark">
+            Découvrir l’approche
           </Link>
         </div>
       </section>
 
-      <section className="samass-final-cta">
-        <p className="samass-kicker">PRENDRE LE TEMPS</p>
-        <h2>
-          Et si votre
-          <br />
-          prochain rendez-vous
-          <br />
-          était avec <em>vous-même ?</em>
-        </h2>
-        <div>
-          <Link href="/reservation" className="samass-arrow-link light">
+      <section className="ritual-notes" data-ritual-reveal>
+        <div className="ritual-section-intro">
+          <p className="ritual-eyebrow">APRÈS LA SÉANCE</p>
+          <h2>Quelques mots laissés en repartant.</h2>
+        </div>
+
+        <div className="ritual-note-grid">
+          {notes.map((note) => (
+            <article key={note.author}>
+              <span className="ritual-note-mark">“</span>
+              <p>{note.text}</p>
+              <small>{note.author}</small>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="ritual-closing" data-ritual-reveal>
+        <div className="ritual-closing-card">
+          <div className="ritual-breath-mark large" aria-hidden="true">
+            <span />
+            <span />
+          </div>
+          <p className="ritual-eyebrow">QUAND VOUS ÊTES PRÊT·E</p>
+          <h2>Le prochain rendez-vous peut simplement commencer par une demande.</h2>
+          <p>
+            Vous choisissez le massage, la durée et l’horaire qui vous
+            conviendrait. Sam vous répond ensuite personnellement.
+          </p>
+          <Link href="/reservation" className="ritual-primary-link">
             Demander un rendez-vous <span>↗</span>
-          </Link>
-          <Link href="/contact" className="samass-text-link light">
-            Poser une question
           </Link>
         </div>
       </section>
