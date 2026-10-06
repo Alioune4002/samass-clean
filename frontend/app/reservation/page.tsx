@@ -54,7 +54,7 @@ export default function Reservation() {
           onClick={() => openModal()}
           className="mt-8 inline-flex items-center justify-center rounded-full bg-emerald-600 text-white px-6 py-3 text-base font-semibold shadow-lg hover:bg-emerald-700 transition"
         >
-          Ouvrir le planning
+          Faire une demande
         </button>
       </section>
 
@@ -66,14 +66,14 @@ export default function Reservation() {
                 Massages disponibles
               </h2>
               <p className="text-gray-600 text-sm">
-                Cliquez sur «Réserver» pour pré-sélectionner le massage.
+                Choisissez un massage pour pré-remplir votre demande de rendez-vous.
               </p>
             </div>
             <button
               onClick={() => openModal()}
               className="md:inline-flex hidden rounded-full border border-emerald-200 text-emerald-800 px-4 py-2 text-sm font-medium hover:border-emerald-400"
             >
-              Voir les créneaux
+              Demander un horaire
             </button>
           </div>
 
