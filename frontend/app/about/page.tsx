@@ -2,168 +2,109 @@ import Image from "next/image";
 import Link from "next/link";
 
 export const metadata = {
-  title: "À propos – SAMASS",
+  title: "L’approche – SAMASS",
   description:
-    "Découvrez l’approche de SAMASS : massages sur-mesure, présence et écoute pour vous aider à relâcher corps et esprit.",
+    "Découvrez l’approche SAMASS : présence, écoute et massages sur-mesure à Quimper.",
 };
 
 export default function AboutPage() {
   return (
-    <div className="bg-gradient-to-b from-emerald-50 to-white text-ink">
-      <section className="max-w-6xl mx-auto px-6 pt-28 pb-16 grid gap-10 lg:grid-cols-2 items-center">
-        <div className="space-y-4">
-          <p className="text-sm uppercase tracking-[0.2em] text-emerald-700">
-            À propos
-          </p>
-          <h1 className="text-3xl md:text-5xl font-bold text-forest leading-tight">
-            Une approche douce, attentive et profondément humaine.
+    <div className="bg-[#ece7de] text-[#101512]">
+      <section className="min-h-[88svh] px-[5vw] pb-[10vh] pt-[22vh]">
+        <p className="samass-kicker text-black/40">L’APPROCHE · SAMASS</p>
+        <div className="mt-8 grid gap-12 lg:grid-cols-[1.35fr_.65fr] lg:items-end">
+          <h1 className="text-[clamp(70px,11vw,170px)] font-extrabold uppercase leading-[.75] tracking-[-.08em]">
+            Être là.
+            <br />
+            <span className="ml-[10vw] font-[Georgia] font-normal italic normal-case text-[#356c59]">
+              Vraiment.
+            </span>
           </h1>
-          <p className="text-softgray text-lg leading-relaxed">
-            Je m’appelle Sam. J’accompagne les personnes qui souhaitent
-            reprendre contact avec leur corps, apaiser leurs tensions et se
-            reconnecter à leurs sensations. Chaque massage est adapté à votre
-            énergie du moment : pas de protocole rigide, seulement de la
-            présence, de l’écoute et des gestes sur-mesure.
+          <p className="max-w-md pb-4 text-lg leading-8 text-black/58">
+            Chez SAMASS, le massage commence avant le premier geste : par une
+            écoute réelle, un cadre clair et la liberté de ralentir sans avoir
+            quoi que ce soit à prouver.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/reservation"
-              className="inline-flex items-center justify-center rounded-full bg-forest text-white px-5 py-3 font-semibold hover:bg-leaf transition"
-            >
-              Prendre rendez-vous
-            </Link>
-            <Link
-              href="/services"
-              className="inline-flex items-center justify-center rounded-full border border-forest text-forest px-5 py-3 font-semibold hover:bg-pastel transition"
-            >
-              Voir les massages
-            </Link>
-          </div>
-        </div>
-
-        <div className="relative aspect-[4/5] w-full">
-          <Image
-            src="/images/about1.jpg"
-            alt="Espace de massage Samass"
-            fill
-            className="rounded-3xl object-cover shadow-xl"
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            priority
-          />
-          <div className="absolute -bottom-6 -left-6 bg-white/80 backdrop-blur rounded-2xl px-4 py-3 shadow-lg border border-emerald-50 text-sm text-forest">
-            Massages bien-être à Quimper · Présence & écoute
-          </div>
         </div>
       </section>
 
-      <section className="bg-white border-y border-emerald-50">
-        <div className="max-w-6xl mx-auto px-6 py-12 grid md:grid-cols-3 gap-6">
+      <section className="grid bg-[#0d1d18] text-[#f2eee7] lg:grid-cols-[1.08fr_.92fr]">
+        <div className="relative min-h-[72vh]">
+          <Image
+            src="/images/about1.jpg"
+            alt="L’espace SAMASS"
+            fill
+            sizes="(max-width: 1024px) 100vw, 55vw"
+            className="object-cover saturate-[.65]"
+          />
+        </div>
+        <div className="flex flex-col justify-center px-[6vw] py-[12vh]">
+          <p className="samass-kicker text-white/35">SAM</p>
+          <h2 className="mt-8 text-[clamp(55px,7vw,105px)] font-bold uppercase leading-[.82] tracking-[-.07em]">
+            Pas de
+            <br />
+            protocole
+            <br />
+            <span className="font-[Georgia] font-normal italic normal-case text-[#d7c5a8]">
+              automatique.
+            </span>
+          </h2>
+          <p className="ml-auto mt-12 max-w-md text-base leading-7 text-white/55">
+            Chaque personne arrive avec une fatigue, une tension, une envie et
+            une histoire différentes. La séance s’adapte donc au rythme, à la
+            pression et aux zones qui demandent de l’attention ce jour-là.
+          </p>
+        </div>
+      </section>
+
+      <section className="px-[5vw] py-[15vh]">
+        <p className="samass-kicker text-black/40">CE QUI GUIDE LA SÉANCE</p>
+        <div className="mt-10 grid border-t border-black/15 md:grid-cols-3">
           {[
-            {
-              title: "Présence",
-              text: "Un cadre sécurisant où vous pouvez réellement vous déposer, respirer et vous détendre.",
-              icon: "🤲",
-            },
-            {
-              title: "Personnalisation",
-              text: "Chaque séance est adaptée : rythme, pression, durée et zones ciblées selon vos besoins.",
-              icon: "✨",
-            },
-            {
-              title: "Régularité",
-              text: "Un accompagnement dans le temps pour libérer les tensions et retrouver de l’énergie.",
-              icon: "🌿",
-            },
-          ].map((item) => (
-            <div
-              key={item.title}
-              className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-6 shadow-sm"
+            ["01", "Présence", "Être attentif à ce que le corps exprime, sans précipiter ni forcer."],
+            ["02", "Écoute", "Créer un cadre où vous pouvez dire ce qui convient, ce qui change et ce dont vous avez besoin."],
+            ["03", "Adaptation", "Faire évoluer pression, rythme et durée pour que la séance reste juste jusqu’au bout."],
+          ].map(([index, title, text]) => (
+            <article
+              key={title}
+              className="min-h-[340px] border-b border-black/15 py-7 md:border-r md:px-7 first:pl-0 last:border-r-0"
             >
-              <div className="text-3xl mb-3">{item.icon}</div>
-              <h3 className="text-lg font-semibold text-forest mb-2">
-                {item.title}
+              <span className="text-[10px] tracking-[.16em] text-black/35">
+                {index}
+              </span>
+              <h3 className="mt-16 text-4xl font-bold uppercase tracking-[-.05em]">
+                {title}
               </h3>
-              <p className="text-softgray text-sm leading-relaxed">
-                {item.text}
-              </p>
-            </div>
+              <p className="mt-6 max-w-sm leading-7 text-black/55">{text}</p>
+            </article>
           ))}
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-6 py-16 grid gap-10 lg:grid-cols-2 items-start">
-        <div className="space-y-4 order-1 lg:order-1">
-          <h2 className="text-2xl md:text-3xl font-semibold text-forest">
-            Mon intention pour vous
-          </h2>
-          <p className="text-softgray leading-relaxed">
-            Vous offrir un moment où vous pouvez relâcher la pression,
-            respirer plus librement et retrouver du confort dans votre corps.
-            J’utilise des huiles naturelles, une gestuelle douce et des
-            techniques inspirées du massage relaxant, tonique et tantrique.
-          </p>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div className="rounded-xl bg-white border border-emerald-100 p-4 text-sm">
-              <p className="font-semibold text-forest">Massages relaxants</p>
-              <p className="text-softgray mt-1">
-                Pour apaiser le système nerveux et libérer les tensions
-                profondes.
-              </p>
-            </div>
-            <div className="rounded-xl bg-white border border-emerald-100 p-4 text-sm">
-              <p className="font-semibold text-forest">Massages toniques</p>
-              <p className="text-softgray mt-1">
-                Pour redynamiser le corps, stimuler la circulation et détendre
-                les muscles fatigués.
-              </p>
-            </div>
-          </div>
+      <section className="grid bg-[#d7c9b6] lg:grid-cols-[.8fr_1.2fr]">
+        <div className="flex flex-col justify-center px-[6vw] py-[12vh]">
+          <p className="samass-kicker text-black/40">L’INTENTION</p>
+          <blockquote className="mt-8 text-[clamp(46px,6vw,88px)] font-bold leading-[.93] tracking-[-.055em]">
+            Créer un endroit où le corps peut enfin
+            <span className="font-[Georgia] font-normal italic text-[#356c59]">
+              {" "}cesser de tenir.
+            </span>
+          </blockquote>
+          <Link
+            href="/reservation"
+            className="mt-12 w-max border-b border-black pb-2 text-sm font-bold"
+          >
+            Demander un rendez-vous ↗
+          </Link>
         </div>
-        <div className="order-2 lg:order-2 bg-gradient-to-b from-emerald-50 to-white border border-emerald-50 rounded-3xl p-6 shadow-sm">
-          <h3 className="text-xl font-semibold text-forest mb-2">Ce que vous pouvez attendre</h3>
-          <ul className="text-softgray space-y-2 text-sm">
-            <li>• Accueil en douceur, respect et écoute</li>
-            <li>• Choix du rythme et de la pression adaptés à votre corps</li>
-            <li>• Huiles naturelles et ambiance calme</li>
-            <li>• Possibilité de massages plus longs selon votre besoin</li>
-          </ul>
-        </div>
-      </section>
-
-      <section className="bg-forest text-white">
-        <div className="max-w-6xl mx-auto px-6 py-14 grid gap-8 md:grid-cols-2 items-center">
-          <div className="space-y-3">
-            <h3 className="text-2xl font-semibold">Envie d&apos;échanger ?</h3>
-            <p className="text-white/80 leading-relaxed">
-              Parlez-moi de vos besoins, de vos douleurs ou simplement de ce que
-              vous aimeriez ressentir après la séance. Nous trouverons le
-              massage qui vous convient.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/reservation"
-                className="inline-flex items-center justify-center rounded-full bg-white text-forest px-5 py-2.5 font-semibold hover:bg-emerald-50 transition"
-              >
-                Réserver un créneau
-              </Link>
-              <Link
-                href="/contact"
-                className="inline-flex items-center justify-center rounded-full border border-white text-white px-5 py-2.5 font-semibold hover:bg-white/10 transition"
-              >
-                Me contacter
-              </Link>
-            </div>
-          </div>
-
-          <div className="relative aspect-[16/10] w-full">
-            <Image
-              src="/images/about3.png"
-              alt="Ambiance Samass"
-              fill
-              className="rounded-2xl object-cover shadow-lg"
-              sizes="(max-width: 768px) 100vw, 50vw"
-            />
-          </div>
+        <div className="relative min-h-[70vh]">
+          <Image
+            src="/images/about3.png"
+            alt="Atmosphère de massage SAMASS"
+            fill
+            sizes="(max-width: 1024px) 100vw, 60vw"
+            className="object-cover"
+          />
         </div>
       </section>
     </div>
