@@ -45,17 +45,15 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}) {
 }
 
 /* --- SERVICES --- */
+async function saveAdminServices(services: Service[]) {
+  return adminInternalRequest<Service[]>("/api/admin/services", {
+    method: "PUT",
+    body: JSON.stringify({ services }),
+  });
+}
+
 export async function adminGetServices() {
-  try {
-    const services = await apiRequest<Service[]>(`/services/`);
-    saveLocalServices(enrichServicesForDisplay(services));
-    return services;
-  } catch (error) {
-    if (isBackendUnavailableError(error)) {
-      return getLocalServices();
-    }
-    throw error;
-  }
+  return adminInternalRequest<Service[]>("/api/admin/services");
 }
 
 export async function adminCreateService(data: {
@@ -63,58 +61,45 @@ export async function adminCreateService(data: {
   description: string;
   durations_prices: Record<string, number>;
 }) {
-  try {
-    const service = await apiRequest<Service>(`/services/`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    saveLocalServices([
-      ...getLocalServices().filter((item) => item.id !== service.id),
-      service,
-    ]);
-    return service;
-  } catch (error) {
-    if (isBackendUnavailableError(error)) {
-      return createLocalService(data);
-    }
-    throw error;
-  }
+  const services = await adminGetServices();
+  const nextId =
+    services.reduce((max, service) => Math.max(max, service.id || 0), 0) + 1;
+  const created: Service = {
+    id: nextId,
+    title: data.title,
+    description: data.description,
+    long_description: null,
+    durations_prices: { ...data.durations_prices },
+    image: null,
+    is_active: true,
+  };
+  await saveAdminServices([...services, created]);
+  return created;
 }
 
 export async function adminDeleteService(id: number) {
-  try {
-    return await apiRequest(`/services/${id}/`, {
-      method: "DELETE",
-    });
-  } catch (error) {
-    if (isBackendUnavailableError(error)) {
-      deleteLocalService(id);
-      return { message: "Service supprime localement." };
-    }
-    throw error;
-  }
+  const services = await adminGetServices();
+  await saveAdminServices(services.filter((service) => service.id !== id));
+  return { message: "Service supprimé." };
 }
 
 export async function adminUpdateService(id: number, data: Partial<Service>) {
-  try {
-    const service = await apiRequest<Service>(`/services/${id}/`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-    saveLocalServices(
-      getLocalServices().map((item) => (item.id === id ? service : item))
-    );
-    return service;
-  } catch (error) {
-    if (isBackendUnavailableError(error)) {
-      const service = updateLocalService(id, data);
-      if (!service) {
-        throw new Error("Service introuvable en mode local.");
-      }
-      return service;
-    }
-    throw error;
-  }
+  const services = await adminGetServices();
+  const next = services.map((service) =>
+    service.id === id
+      ? {
+          ...service,
+          ...data,
+          durations_prices: data.durations_prices
+            ? { ...data.durations_prices }
+            : { ...service.durations_prices },
+        }
+      : service
+  );
+  await saveAdminServices(next);
+  const updated = next.find((service) => service.id === id);
+  if (!updated) throw new Error("Service introuvable.");
+  return updated;
 }
 
 /* --- AVAILABILITIES --- */
