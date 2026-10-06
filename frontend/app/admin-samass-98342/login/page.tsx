@@ -2,63 +2,73 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAdminPassword, startAdminSession } from "@/lib/adminAuth";
+import { loginAdmin } from "@/lib/adminAuth";
 
 export default function AdminLogin() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: any) => {
-    e.preventDefault();
-    const configuredPassword = getAdminPassword();
-
-    if (!configuredPassword) {
-      setError(
-        "Le mot de passe admin local n'est pas configuré. Ajoutez NEXT_PUBLIC_ADMIN_PASSWORD."
-      );
-      return;
+  async function handleLogin(event: React.FormEvent) {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await loginAdmin(password);
+      router.push("/admin-samass-98342/dashboard");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Connexion impossible.");
+    } finally {
+      setLoading(false);
     }
-
-    if (password !== configuredPassword) {
-      setError("Mot de passe incorrect.");
-      return;
-    }
-
-    startAdminSession();
-    router.push("/admin-samass-98342/services");
-  };
+  }
 
   return (
-    <div className="max-w-sm mx-auto pt-20">
-      <h1 className="text-2xl font-bold mb-4">Connexion Admin</h1>
+    <div className="min-h-screen bg-[#0d1915] px-5 py-20 text-white">
+      <div className="mx-auto max-w-sm rounded-[28px] border border-white/10 bg-white/[0.06] p-7 shadow-2xl">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-300">
+          Espace Sam
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold">Connexion</h1>
+        <p className="mt-2 text-sm leading-6 text-white/60">
+          Accès privé aux demandes, messages et réservations SAMASS.
+        </p>
 
-      <form onSubmit={handleLogin} className="flex flex-col gap-4">
-        <input
-          type={showPwd ? "text" : "password"}
-          placeholder="Mot de passe admin"
-          className="border p-2 rounded"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <button
-          type="button"
-          className="text-sm text-gray-500 self-end"
-          onClick={() => setShowPwd(!showPwd)}
-        >
-          {showPwd ? "Masquer" : "Afficher"}
-        </button>
+        <form onSubmit={handleLogin} className="mt-7 flex flex-col gap-4">
+          <input
+            type={showPwd ? "text" : "password"}
+            placeholder="Mot de passe"
+            autoComplete="current-password"
+            className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-emerald-400"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button
+            type="button"
+            className="self-end text-xs text-white/55 hover:text-white"
+            onClick={() => setShowPwd((value) => !value)}
+          >
+            {showPwd ? "Masquer" : "Afficher"}
+          </button>
 
-        {error && <p className="text-red-500">{error}</p>}
+          {error && (
+            <p className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+              {error}
+            </p>
+          )}
 
-        <button
-          type="submit"
-          className="bg-black text-white p-2 rounded hover:bg-gray-800"
-        >
-          Se connecter
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={loading || !password}
+            className="rounded-full bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+          >
+            {loading ? "Connexion…" : "Se connecter"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
