@@ -1,30 +1,37 @@
 "use client";
 
-const ADMIN_SESSION_KEY = "samass_admin_logged";
-const ADMIN_COOKIE_NAME = "admin_token";
-
-export function getAdminPassword() {
-  return process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "";
+export async function isAdminSessionActive() {
+  try {
+    const response = await fetch("/api/admin/session", {
+      method: "GET",
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    if (!response.ok) return false;
+    const data = (await response.json()) as { authenticated?: boolean };
+    return Boolean(data.authenticated);
+  } catch {
+    return false;
+  }
 }
 
-export function isAdminSessionActive() {
-  if (typeof window === "undefined") return false;
-
-  const logged = window.localStorage.getItem(ADMIN_SESSION_KEY) === "true";
-  const hasCookie = document.cookie.includes(`${ADMIN_COOKIE_NAME}=ok`);
-  return logged || hasCookie;
+export async function loginAdmin(password: string) {
+  const response = await fetch("/api/admin/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ password }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Connexion impossible.");
+  }
+  return true;
 }
 
-export function startAdminSession() {
-  if (typeof window === "undefined") return;
-
-  window.localStorage.setItem(ADMIN_SESSION_KEY, "true");
-  document.cookie = `${ADMIN_COOKIE_NAME}=ok; path=/; max-age=604800; samesite=lax`;
-}
-
-export function clearAdminSession() {
-  if (typeof window === "undefined") return;
-
-  window.localStorage.removeItem(ADMIN_SESSION_KEY);
-  document.cookie = `${ADMIN_COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
+export async function clearAdminSession() {
+  await fetch("/api/admin/session", {
+    method: "DELETE",
+    credentials: "same-origin",
+  });
 }
