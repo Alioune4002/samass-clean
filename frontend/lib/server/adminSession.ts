@@ -6,7 +6,7 @@ const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
 function getAdminPassword() {
   const value =
-    process.env.ADMIN_PASSWORD || process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "";
+    process.env.ADMIN_PASSWORD || "";
   if (!value) {
     throw new Error("Mot de passe admin non configuré.");
   }
