@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
   { href: "/services", label: "Massages" },
-  { href: "/about", label: "Approche" },
+  { href: "/about", label: "L’approche" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -16,7 +16,7 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    const onScroll = () => setScrolled(window.scrollY > 18);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -26,83 +26,60 @@ export default function Header() {
 
   return (
     <>
-      <header
-        className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
-          scrolled
-            ? "border-b border-white/10 bg-[#081914]/88 backdrop-blur-xl"
-            : "bg-transparent"
-        }`}
-      >
-        <div className="flex items-center justify-between px-[4vw] py-5 text-[#f2eee7]">
-          <Link href="/" className="flex items-baseline gap-3">
-            <span className="text-[20px] font-extrabold tracking-[-0.04em]">
-              SAMASS
+      <header className="ritual-header-shell">
+        <div className={`ritual-header ${scrolled ? "is-scrolled" : ""}`}>
+          <Link href="/" className="ritual-brand">
+            <span className="ritual-brand-mark" aria-hidden="true">
+              <i />
+              <i />
             </span>
-            <span className="hidden text-[9px] font-semibold uppercase tracking-[0.2em] text-white/45 sm:block">
-              Revenir à soi
+            <span>
+              <strong>SAMASS</strong>
+              <small>Massage · Quimper</small>
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-8 text-[10px] font-bold uppercase tracking-[0.16em] md:flex">
+          <nav className="ritual-nav">
             {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-white/68 transition hover:text-white"
-              >
+              <Link key={item.href} href={item.href}>
                 {item.label}
               </Link>
             ))}
-            <Link
-              href="/reservation"
-              className="border border-white/35 px-4 py-3 text-white transition hover:bg-white hover:text-[#081914]"
-            >
-              Rendez-vous ↗
-            </Link>
           </nav>
 
-          <button
-            type="button"
-            aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-            aria-expanded={open}
-            onClick={() => setOpen((value) => !value)}
-            className="border border-white/25 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] md:hidden"
-          >
-            {open ? "Fermer" : "Menu"}
-          </button>
+          <div className="ritual-header-actions">
+            <Link href="/reservation" className="ritual-header-booking">
+              Rendez-vous
+            </Link>
+
+            <button
+              type="button"
+              className="ritual-menu-button"
+              onClick={() => setOpen((value) => !value)}
+              aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
+              aria-expanded={open}
+            >
+              {open ? "Fermer" : "Menu"}
+            </button>
+          </div>
         </div>
       </header>
 
-      <div
-        className={`fixed inset-0 z-40 bg-[#081914] px-5 pb-8 pt-28 text-[#f2eee7] transition-all duration-300 md:hidden ${
-          open
-            ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
-        }`}
-      >
-        <p className="mb-8 text-[9px] font-bold uppercase tracking-[0.2em] text-white/35">
-          Navigation
-        </p>
-        <div className="border-t border-white/15">
-          {NAV_ITEMS.map((item, index) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center justify-between border-b border-white/15 py-5"
-            >
-              <span className="text-[12vw] font-bold leading-none tracking-[-0.06em] uppercase">
+      <div className={`ritual-mobile-menu ${open ? "is-open" : ""}`}>
+        <div className="ritual-mobile-menu-card">
+          <p>Prendre le temps</p>
+          <div className="ritual-mobile-links">
+            <Link href="/">Accueil</Link>
+            {NAV_ITEMS.map((item) => (
+              <Link key={item.href} href={item.href}>
                 {item.label}
-              </span>
-              <span className="text-xs text-white/35">0{index + 1}</span>
-            </Link>
-          ))}
+              </Link>
+            ))}
+          </div>
+          <Link href="/reservation" className="ritual-primary-link">
+            Demander un rendez-vous <span>↗</span>
+          </Link>
         </div>
-        <Link
-          href="/reservation"
-          className="mt-10 inline-flex border-b border-white pb-2 text-lg font-semibold"
-        >
-          Demander un rendez-vous ↗
-        </Link>
       </div>
     </>
   );
