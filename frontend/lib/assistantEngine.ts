@@ -1275,3 +1275,249 @@ export function resolveAssistantQuery(query: string): AssistantResponse {
   const context = buildContext(service, intentDetection, query);
   return generateResponse(context);
 }
+
+
+export type AssistantConversationTurn = {
+  role: "user" | "assistant";
+  text: string;
+};
+
+function inferServiceFromHistory(history: AssistantConversationTurn[]) {
+  for (const turn of [...history].reverse()) {
+    const detected = detectService(turn.text);
+    if (detected) return detected;
+
+    const normalized = normalizeText(turn.text);
+    for (const target of SERVICE_TARGETS) {
+      if (normalized.includes(normalizeText(target.title))) return target;
+    }
+  }
+  return null;
+}
+
+function isTantricBoundaryQuestion(query: string) {
+  const normalized = normalizeText(query);
+  const keywords = [
+    "nu",
+    "nudite",
+    "sous vetement",
+    "boxer",
+    "slip",
+    "sexuel",
+    "erotique",
+    "sexe",
+    "parties intimes",
+    "genital",
+    "erection",
+    "excitation",
+    "orgasme",
+    "jouissance",
+    "happy ending",
+    "finition",
+    "zones massees"
+  ];
+
+  return keywords.some((keyword) =>
+    normalized.includes(normalizeText(keyword))
+  );
+}
+
+function buildTantricBoundaryAnswer(query: string): AssistantResponse {
+  const normalized = normalizeText(query);
+  const asksSexual =
+    normalized.includes("sexuel") ||
+    normalized.includes("erotique") ||
+    normalized.includes("happy ending") ||
+    normalized.includes("orgasme") ||
+    normalized.includes("jouissance") ||
+    normalized.includes("finition");
+
+  return {
+    type: "knowledge",
+    title: "Le cadre du massage tantrique",
+    shortAnswer: asksSexual
+      ? "Chez SAMASS, le massage tantrique est présenté comme une expérience de bien-être lente et sensorielle, centrée sur la présence et la reconnexion au corps — pas comme la promesse d’une prestation sexuelle."
+      : "Pour la tenue, les zones massées et les limites de la séance, rien ne doit être présumé : ces points se clarifient avec Sam avant de commencer, selon votre confort.",
+    longAnswer: [
+      "La séance commence par un échange sur ce que vous recherchez, votre niveau de confort et les limites importantes pour vous.",
+      "Le consentement reste central : vous pouvez demander de ralentir, d’éviter une zone ou de faire une pause à tout moment.",
+      "Pour une question très précise sur la tenue, une zone du corps ou un détail intime du protocole, le plus fiable est de demander directement à Sam avant le rendez-vous."
+    ],
+    links: [
+      { href: "/services", label: "Découvrir le massage tantrique" },
+      { href: "/contact", label: "Poser une question à Sam" },
+      { href: "/reservation", label: "Demander un rendez-vous" }
+    ],
+    suggestions: [
+      "Comment se déroule le massage tantrique ?",
+      "Combien coûte le massage tantrique ?",
+      "Je n’ai jamais fait de massage tantrique, à quoi m’attendre ?"
+    ],
+    matches: []
+  };
+}
+
+function buildConversationalRecommendation(query: string): AssistantResponse {
+  const normalized = normalizeText(query);
+  const has = (values: string[]) =>
+    values.some((value) => normalized.includes(normalizeText(value)));
+
+  const wantsPhysical = has([
+    "musculaire",
+    "contracture",
+    "sport",
+    "recuperation",
+    "dos",
+    "epaules",
+    "jambes",
+    "profond"
+  ]);
+
+  const wantsCalm = has([
+    "stress",
+    "detendre",
+    "relaxer",
+    "calme",
+    "souffler",
+    "sommeil",
+    "pression"
+  ]);
+
+  const wantsTantric = has([
+    "reconnexion",
+    "reconnecter",
+    "sensoriel",
+    "sensation",
+    "presence",
+    "lacher prise",
+    "lent",
+    "tantra",
+    "tantrique",
+    "me retrouver",
+    "ressentir",
+    "curieux",
+    "curieuse"
+  ]);
+
+  let title = "Massage Tantrique";
+  let reason =
+    "Si vous cherchez surtout une expérience lente, sensorielle et centrée sur la présence au corps, je vous orienterais d’abord vers le massage tantrique. C’est aussi l’expérience la plus recherchée chez SAMASS.";
+
+  if (wantsPhysical) {
+    title = "Massage Tonique";
+    reason =
+      "Votre demande semble surtout physique : tensions, récupération ou besoin d’un travail plus appuyé. Le massage tonique paraît le plus cohérent.";
+  } else if (wantsCalm && !wantsTantric) {
+    title = "Massage Relaxant Tonique";
+    reason =
+      "Si votre priorité est surtout de relâcher le stress et la pression, le massage relaxant tonique est généralement le point d’entrée le plus simple.";
+  }
+
+  const service = getServiceData(title);
+  const prices = Object.entries(service.durations_prices)
+    .map(([duration, price]) =>
+      formatDurationLabel(Number(duration)) + " · " + price + " €"
+    )
+    .join(" • ");
+
+  return {
+    type: "knowledge",
+    title: "Je vous orienterais vers le " + service.title,
+    shortAnswer: reason,
+    longAnswer: [
+      service.description,
+      "Formules actuelles : " + prices + ".",
+      title !== "Massage Tantrique"
+        ? "Si vous recherchez plutôt lenteur, sensations et reconnexion au corps, le massage tantrique peut aussi être une très bonne piste."
+        : "Si vous cherchez surtout un travail musculaire ciblé, le massage tonique sera plus adapté."
+    ],
+    links: buildServiceLinks(service.title),
+    suggestions: [
+      "Comment se déroule le " + service.title.toLowerCase() + " ?",
+      "Est-ce adapté pour une première séance ?",
+      "Comment demander un rendez-vous ?"
+    ],
+    matches: []
+  };
+}
+
+function inferFollowUpIntent(
+  query: string,
+  history: AssistantConversationTurn[]
+): IntentDetection {
+  const current = detectIntent(query);
+  if (current.intent !== "unknown") return current;
+
+  const normalized = normalizeText(query);
+  if (extractRequestedDuration(query) !== null) {
+    if (
+      normalized.includes("prix") ||
+      normalized.includes("combien") ||
+      normalized.includes("euro")
+    ) {
+      return { intent: "pricing", score: 80 };
+    }
+    return { intent: "duration", score: 70 };
+  }
+
+  if (
+    normalized.startsWith("et ") ||
+    normalized.startsWith("pour ") ||
+    normalized.length <= 22
+  ) {
+    for (const turn of [...history].reverse()) {
+      if (turn.role !== "user") continue;
+      const previous = detectIntent(turn.text);
+      if (previous.intent !== "unknown") {
+        return {
+          intent: previous.intent,
+          score: Math.max(previous.score - 10, 25)
+        };
+      }
+    }
+  }
+
+  return current;
+}
+
+export function resolveAssistantConversation(
+  query: string,
+  history: AssistantConversationTurn[] = []
+): AssistantResponse {
+  const normalized = normalizeText(query);
+  const explicitService = detectService(query);
+  const service = explicitService || inferServiceFromHistory(history);
+
+  if (
+    (service?.key === "tantrique" ||
+      normalized.includes("tantra") ||
+      normalized.includes("tantrique")) &&
+    isTantricBoundaryQuestion(query)
+  ) {
+    return buildTantricBoundaryAnswer(query);
+  }
+
+  if (
+    normalized.includes("plus demande") ||
+    normalized.includes("plus populaire") ||
+    normalized.includes("le plus choisi") ||
+    normalized.includes("meilleur massage")
+  ) {
+    return buildConversationalRecommendation("reconnexion sensorielle tantrique");
+  }
+
+  const intentDetection = inferFollowUpIntent(query, history);
+
+  if (
+    intentDetection.intent === "choose" ||
+    normalized.includes("je cherche") ||
+    normalized.includes("j ai besoin") ||
+    normalized.includes("je voudrais") ||
+    normalized.includes("conseille")
+  ) {
+    return buildConversationalRecommendation(query);
+  }
+
+  const context = buildContext(service, intentDetection, query);
+  return generateResponse(context);
+}
