@@ -13,20 +13,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (pathname === "/admin-samass-98342/login") {
       setAuthorized(true);
       setChecked(true);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
-    let cancelled = false;\n    void isAdminSessionActive().then((isAuthorized) => {
+    void isAdminSessionActive().then((isAuthorized) => {
       if (cancelled) return;
+
       if (!isAuthorized) {
-        router.push("/admin-samass-98342/login");
         setAuthorized(false);
         setChecked(true);
+        router.replace("/admin-samass-98342/login");
         return;
       }
+
       setAuthorized(true);
       setChecked(true);
     });
@@ -36,11 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
   }, [pathname, router]);
 
-  if (!checked) {
-    return null;
-  }
-
-  if (!authorized) {
+  if (!checked || !authorized) {
     return null;
   }
 
@@ -51,7 +53,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-screen bg-[#0D0D0D] text-white">
       <Sidebar />
-      <main className="flex-1 p-4 sm:p-5 md:p-6 overflow-auto pt-16 md:pt-6">
+      <main className="flex-1 overflow-auto p-4 pt-16 sm:p-5 md:p-6 md:pt-6">
         {children}
       </main>
     </div>
