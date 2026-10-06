@@ -10,6 +10,7 @@ import {
   AssistantLink,
 } from "./assistantKnowledge";
 import { getServiceCatalogEntry } from "./serviceCatalog";
+import { Service } from "./types";
 
 type QueryIntent =
   | "pricing"
@@ -362,7 +363,25 @@ function formatDurationList(durations: number[]) {
   return durations.map(formatDurationLabel).join(", ");
 }
 
+let liveServiceCatalog: Service[] | null = null;
+
+export function setAssistantServiceCatalog(services: Service[]) {
+  liveServiceCatalog = services.map((service) => ({
+    ...service,
+    durations_prices: { ...service.durations_prices },
+  }));
+}
+
 function getServiceData(title: string) {
+  const liveService = liveServiceCatalog?.find((service) => service.title === title);
+  if (liveService) {
+    return {
+      ...liveService,
+      long_description: liveService.long_description || liveService.description,
+      durations_prices: { ...liveService.durations_prices },
+    };
+  }
+
   const service = getServiceCatalogEntry(title);
   if (!service) {
     throw new Error(`Missing service catalog entry for "${title}".`);
@@ -963,10 +982,53 @@ function buildGenericIntentResponse(context: AssistantContext) {
   }
 
   if (context.intent === "pricing") {
+    if (liveServiceCatalog?.length) {
+      return {
+        type: "knowledge" as const,
+        title: "Tarifs des massages",
+        shortAnswer: "Voici les tarifs actuellement proposés par SAMASS.",
+        longAnswer: liveServiceCatalog
+          .filter((service) => service.is_active !== false)
+          .map((service) =>
+            `${service.title} : ${Object.entries(service.durations_prices)
+              .map(([duration, price]) => `${formatDurationLabel(Number(duration))} : ${price} €`)
+              .join(" • ")}`
+          ),
+        links: DEFAULT_LINKS,
+        suggestions: [
+          "Quel massage choisir ?",
+          "Combien de temps dure une séance ?",
+          "Comment demander un rendez-vous ?",
+        ],
+        matches: [],
+      };
+    }
     return buildKnowledgeResponse(getKnowledgeEntry("pricing"));
   }
 
   if (context.intent === "duration") {
+    if (liveServiceCatalog?.length) {
+      return {
+        type: "knowledge" as const,
+        title: "Durée des séances",
+        shortAnswer: "Les durées disponibles dépendent du massage choisi.",
+        longAnswer: liveServiceCatalog
+          .filter((service) => service.is_active !== false)
+          .map(
+            (service) =>
+              `${service.title} : ${Object.keys(service.durations_prices)
+                .map((duration) => formatDurationLabel(Number(duration)))
+                .join(", ")}.`
+          ),
+        links: DEFAULT_LINKS,
+        suggestions: [
+          "Quels sont les tarifs ?",
+          "Quel massage choisir ?",
+          "Comment demander un rendez-vous ?",
+        ],
+        matches: [],
+      };
+    }
     return buildKnowledgeResponse(getKnowledgeEntry("duration"));
   }
 
