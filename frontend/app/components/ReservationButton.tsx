@@ -4,7 +4,7 @@ import { useState } from "react";
 import ReservationModal from "./ReservationModal";
 
 type Props = {
-  serviceId?: number; 
+  serviceId?: number;
 };
 
 export default function ReservationButton({ serviceId }: Props) {
@@ -13,10 +13,11 @@ export default function ReservationButton({ serviceId }: Props) {
   return (
     <>
       <button
+        type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white px-5 py-2.5 text-sm font-medium hover:bg-emerald-700 transition shadow-sm"
+        className="ritual-booking-button"
       >
-        Réserver ce massage
+        Demander ce massage <span aria-hidden="true">↗</span>
       </button>
 
       <ReservationModal
