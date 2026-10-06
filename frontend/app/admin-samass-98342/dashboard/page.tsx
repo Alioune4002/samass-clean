@@ -26,12 +26,14 @@ export default function AdminDashboard() {
 
         const todayISO = new Date().toISOString().slice(0, 10);
 
-        const today = bookings.filter((b: any) =>
-          b.availability.start_datetime.startsWith(todayISO)
+        const today = bookings.filter(
+          (b: any) =>
+            b.status === "confirmed" &&
+            b.availability.start_datetime.startsWith(todayISO)
         );
 
         const upcoming = bookings
-          .filter((b: any) => b.status !== "canceled")
+          .filter((b: any) => b.status === "confirmed")
           .sort(
             (a: any, b: any) =>
               new Date(a.availability.start_datetime).getTime() -
@@ -87,7 +89,7 @@ export default function AdminDashboard() {
       {/* ---- PROCHAINS RDV ---- */}
       <div className="bg-[#1A1A1A] p-6 rounded-xl border border-gray-800">
         <h2 className="text-xl font-semibold mb-4 text-emerald-400">
-          Prochains rendez-vous
+          Prochains rendez-vous confirmés
         </h2>
 
         {loading ? (
