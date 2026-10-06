@@ -1,5 +1,7 @@
 import { ImapFlow } from "imapflow";
 import crypto from "node:crypto";
+import { Service } from "@/lib/types";
+import { buildFallbackServices } from "@/lib/serviceCatalog";
 
 export type BookingStatus = "pending" | "confirmed" | "canceled";
 
@@ -34,8 +36,18 @@ export type StoredContactMessage = {
   deleted_at?: string;
 };
 
+export type StoredCatalogRecord = {
+  kind: "catalog";
+  id: "services";
+  services: Service[];
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+};
+
 const BOOKING_FOLDER = "SAMASS-Bookings";
 const MESSAGE_FOLDER = "SAMASS-Messages";
+const SETTINGS_FOLDER = "SAMASS-Settings";
 
 function getMailConfig() {
   const user = process.env.EMAIL_HOST_USER;
@@ -71,11 +83,13 @@ async function ensureMailbox(client: ImapFlow, path: string) {
   }
 }
 
-function encodeRecord(record: StoredBooking | StoredContactMessage) {
+function encodeRecord(record: StoredBooking | StoredContactMessage | StoredCatalogRecord) {
   const subject =
     record.kind === "booking"
       ? `SAMASS_BOOKING:${record.id}`
-      : `SAMASS_CONTACT:${record.id}`;
+      : record.kind === "contact"
+        ? `SAMASS_CONTACT:${record.id}`
+        : `SAMASS_SETTINGS:${record.id}`;
 
   const payload = JSON.stringify(record);
   return [
@@ -94,7 +108,7 @@ function parseRecord(source: Buffer | string) {
   const separator = text.indexOf("\r\n\r\n");
   const body = separator >= 0 ? text.slice(separator + 4) : text;
   try {
-    return JSON.parse(body.trim()) as StoredBooking | StoredContactMessage;
+    return JSON.parse(body.trim()) as StoredBooking | StoredContactMessage | StoredCatalogRecord;
   } catch {
     return null;
   }
@@ -102,7 +116,7 @@ function parseRecord(source: Buffer | string) {
 
 async function appendRecord(
   folder: string,
-  record: StoredBooking | StoredContactMessage
+  record: StoredBooking | StoredContactMessage | StoredCatalogRecord
 ) {
   const client = await createImapClient();
   try {
@@ -113,7 +127,7 @@ async function appendRecord(
   }
 }
 
-async function readLatestRecords<T extends StoredBooking | StoredContactMessage>(
+async function readLatestRecords<T extends StoredBooking | StoredContactMessage | StoredCatalogRecord>(
   folder: string,
   kind: T["kind"]
 ): Promise<T[]> {
@@ -200,6 +214,58 @@ function mailShell(title: string, body: string) {
       <div style="font-size:14px;line-height:1.75;color:#42514c;">${body}</div>
       <div style="margin-top:28px;padding-top:18px;border-top:1px solid #e7e2d4;font-size:12px;color:#7b817e;">SAMASS · Massage & bien-être · Quimper</div>
     </div>`;
+}
+
+export async function getServiceCatalog(): Promise<Service[]> {
+  const records = await readLatestRecords<StoredCatalogRecord>(
+    SETTINGS_FOLDER,
+    "catalog"
+  );
+
+  if (!records.length) {
+    return buildFallbackServices();
+  }
+
+  return records[0].services
+    .filter((service) => service.is_active !== false)
+    .map((service) => ({
+      ...service,
+      durations_prices: { ...service.durations_prices },
+    }));
+}
+
+export async function getAdminServiceCatalog(): Promise<Service[]> {
+  const records = await readLatestRecords<StoredCatalogRecord>(
+    SETTINGS_FOLDER,
+    "catalog"
+  );
+
+  if (!records.length) {
+    return buildFallbackServices();
+  }
+
+  return records[0].services.map((service) => ({
+    ...service,
+    durations_prices: { ...service.durations_prices },
+  }));
+}
+
+export async function saveServiceCatalog(services: Service[]) {
+  const now = new Date().toISOString();
+  const record: StoredCatalogRecord = {
+    kind: "catalog",
+    id: "services",
+    services: services.map((service) => ({
+      ...service,
+      long_description: service.long_description ?? null,
+      durations_prices: { ...service.durations_prices },
+    })),
+    created_at: now,
+    updated_at: now,
+  };
+
+  await appendRecord(SETTINGS_FOLDER, record);
+  return record.services;
 }
 
 export async function createBooking(input: {
