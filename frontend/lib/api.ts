@@ -124,52 +124,33 @@ export async function createBooking(data: {
   startDateTime: string;
   slotLabel?: string;
 }): Promise<BookingRequestResult> {
-  if (data.availabilityId < 0 || !data.startDateTime) {
-    return sendFallbackMail({
-      type: "booking",
+  const response = await fetch("/api/bookings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
       client_name: data.client_name,
       client_email: data.client_email,
       client_phone: data.client_phone,
       client_comment: data.client_comment,
-      service: data.serviceTitle,
+      service_id: data.serviceId,
+      service_title: data.serviceTitle,
       duration_minutes: data.durationMinutes,
-      date_time: data.slotLabel || "A convenir avec Sam",
-    });
+      requested_datetime: data.startDateTime,
+      requested_label: data.slotLabel,
+    }),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result.error || "Impossible d'envoyer la demande.");
   }
 
-  try {
-    const booking = await requestJson<Booking>("/bookings/", {
-      method: "POST",
-      body: JSON.stringify({
-        client_name: data.client_name,
-        client_email: data.client_email,
-        client_phone: data.client_phone,
-        client_comment: data.client_comment,
-        service_id: data.serviceId,
-        availability_id: data.availabilityId,
-        duration_minutes: data.durationMinutes,
-        start_datetime: data.startDateTime,
-      }),
-    });
-    return {
-      mode: "online",
-      booking,
-    };
-  } catch (error) {
-    if (isBackendUnavailableError(error)) {
-      return sendFallbackMail({
-        type: "booking",
-        client_name: data.client_name,
-        client_email: data.client_email,
-        client_phone: data.client_phone,
-        client_comment: data.client_comment,
-        service: data.serviceTitle,
-        duration_minutes: data.durationMinutes,
-        date_time: data.slotLabel || "A convenir avec Sam",
-      });
-    }
-    throw error;
-  }
+  return {
+    mode: "fallback",
+    message:
+      result.message ||
+      "Votre demande a bien été transmise à Sam. Elle reste à confirmer.",
+  };
 }
 
 export async function submitContactForm(data: {
@@ -178,28 +159,21 @@ export async function submitContactForm(data: {
   phone?: string;
   message: string;
 }): Promise<ContactRequestResult> {
-  try {
-    const result = await requestJson<{ message: string }>("/contact/", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    return {
-      mode: "online",
-      message:
-        result.message || "Message envoyé avec succès. Je vous répondrai très vite.",
-    };
-  } catch (error) {
-    if (error instanceof BackendUnavailableError) {
-      return sendFallbackMail({
-        type: "contact",
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        message: data.message,
-      });
-    }
-    throw error;
+  const response = await fetch("/api/contact", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result.error || "Impossible d'envoyer le message.");
   }
+
+  return {
+    mode: "fallback",
+    message: "Votre message a bien été reçu. Sam vous répondra rapidement.",
+  };
 }
 
 export async function deleteAvailability(id: number) {
