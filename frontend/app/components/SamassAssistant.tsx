@@ -13,7 +13,8 @@ import {
   ASSISTANT_SCOPE_NOTE,
   ASSISTANT_STARTER_SUGGESTIONS,
 } from "@/lib/assistantKnowledge";
-import { AssistantResponse, resolveAssistantQuery } from "@/lib/assistantEngine";
+import { AssistantResponse, resolveAssistantQuery, setAssistantServiceCatalog } from "@/lib/assistantEngine";
+import { getServices } from "@/lib/api";
 
 type UserMessage = { id: string; role: "user"; text: string };
 type AssistantMessage = { id: string; role: "assistant"; response: AssistantResponse };
@@ -388,6 +389,19 @@ export default function SamassAssistant() {
 
     openAssistant();
   }
+
+  useEffect(() => {
+    let active = true;
+    void getServices()
+      .then((services) => {
+        if (active) setAssistantServiceCatalog(services);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const expanded = getExpandedPosition();
