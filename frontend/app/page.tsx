@@ -17,6 +17,14 @@ const needs: Array<{
   reason: string;
 }> = [
   {
+    key: "sensation",
+    label: "Je veux me reconnecter",
+    prompt: "Besoin de lenteur, de présence et de sensations.",
+    target: "Massage Tantrique",
+    reason:
+      "L’expérience la plus recherchée chez SAMASS : un massage lent et sensoriel pour revenir au corps et au moment présent.",
+  },
+  {
     key: "calm",
     label: "J’ai besoin de ralentir",
     prompt: "Mental chargé, fatigue nerveuse, besoin de souffler.",
@@ -39,14 +47,6 @@ const needs: Array<{
     target: "Massage Tonique",
     reason:
       "Le rythme plus dynamique aide à retrouver une sensation de mouvement, de circulation et d’élan.",
-  },
-  {
-    key: "sensation",
-    label: "Je veux me reconnecter",
-    prompt: "Besoin de lenteur, de présence et de sensations.",
-    target: "Massage Tantrique",
-    reason:
-      "Une expérience plus lente et sensorielle, centrée sur la présence au corps et le ressenti du moment.",
   },
 ];
 
@@ -73,7 +73,7 @@ const notes = [
 
 export default function HomePage() {
   const [services, setServices] = useState<Service[]>([]);
-  const [selectedNeed, setSelectedNeed] = useState<NeedKey>("calm");
+  const [selectedNeed, setSelectedNeed] = useState<NeedKey>("sensation");
 
   useEffect(() => {
     void getServices().then(setServices).catch(() => setServices([]));
@@ -105,6 +105,16 @@ export default function HomePage() {
   const recommendedService = useMemo(
     () => services.find((service) => service.title === need.target) ?? null,
     [need.target, services]
+  );
+
+  const displayedServices = useMemo(
+    () =>
+      [...services].sort((a, b) => {
+        if (a.title === "Massage Tantrique") return -1;
+        if (b.title === "Massage Tantrique") return 1;
+        return 0;
+      }),
+    [services]
   );
 
   return (
@@ -228,7 +238,7 @@ export default function HomePage() {
         </div>
 
         <div className="ritual-massage-cards">
-          {services.map((service) => (
+          {displayedServices.map((service) => (
             <article key={service.id} className="ritual-massage-card">
               <div className="ritual-massage-image">
                 <Image
@@ -245,6 +255,9 @@ export default function HomePage() {
               </div>
 
               <div className="ritual-massage-copy">
+                {service.title === "Massage Tantrique" ? (
+                  <span className="ritual-featured-label">Le plus demandé</span>
+                ) : null}
                 <h3>{service.title.replace("Massage ", "")}</h3>
                 <p>{service.description}</p>
 
