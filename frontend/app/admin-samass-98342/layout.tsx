@@ -19,15 +19,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
 
-    const isAuthorized = isAdminSessionActive();
-    if (!isAuthorized) {
-      router.push("/admin-samass-98342/login");
-      setAuthorized(false);
+    let cancelled = false;\n    void isAdminSessionActive().then((isAuthorized) => {
+      if (cancelled) return;
+      if (!isAuthorized) {
+        router.push("/admin-samass-98342/login");
+        setAuthorized(false);
+        setChecked(true);
+        return;
+      }
+      setAuthorized(true);
       setChecked(true);
-      return;
-    }
-    setAuthorized(true);
-    setChecked(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [pathname, router]);
 
   if (!checked) {
