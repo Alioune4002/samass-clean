@@ -332,7 +332,7 @@ export const ASSISTANT_KNOWLEDGE_BASE: AssistantKnowledgeEntry[] = [
       "quelle durée choisir",
       "quelles sont les durées",
     ],
-    links: [{ href: "/reservation", label: "Voir les créneaux" }],
+    links: [{ href: "/reservation", label: "Demander un rendez-vous" }],
     suggestions: [
       "Quels sont les tarifs ?",
       "Quel massage choisir ?",
@@ -620,10 +620,10 @@ export const ASSISTANT_KNOWLEDGE_BASE: AssistantKnowledgeEntry[] = [
     title: "Réservation",
     question: "Comment réserver ?",
     shortAnswer:
-      "Vous pouvez réserver directement depuis le site en choisissant votre massage, la durée puis un créneau disponible.",
+      "Vous pouvez envoyer une demande de rendez-vous depuis le site en choisissant votre massage, sa durée puis l’horaire qui vous conviendrait.",
     longAnswer: [
-      "Le parcours de réservation vous guide pas à pas : choix du massage, de la durée, du créneau, puis saisie de vos coordonnées.",
-      "Si la réservation en ligne est momentanément indisponible ou si aucun créneau n’apparaît, vous pouvez toujours passer par la page Contact pour organiser votre rendez-vous avec Sam.",
+      "Le parcours vous guide pas à pas : choix du massage, de la durée, de l’horaire souhaité, puis saisie de vos coordonnées.",
+      "Une demande envoyée n’est pas une confirmation automatique : Sam vous répond ensuite pour valider l’horaire ou proposer une alternative. Vous pouvez aussi passer par la page Contact pour une demande particulière.",
     ],
     keywords: ["réserver", "reservation", "comment réserver", "comment reserver", "créneau", "creneau"],
     phrases: [
@@ -633,7 +633,7 @@ export const ASSISTANT_KNOWLEDGE_BASE: AssistantKnowledgeEntry[] = [
       "je veux réserver",
     ],
     links: [
-      { href: "/reservation", label: "Ouvrir la réservation" },
+      { href: "/reservation", label: "Faire une demande" },
       { href: "/contact", label: "Contacter Sam" },
     ],
     suggestions: [
@@ -647,9 +647,9 @@ export const ASSISTANT_KNOWLEDGE_BASE: AssistantKnowledgeEntry[] = [
     title: "Aucun créneau disponible",
     question: "Que faire si aucun créneau n’est disponible ?",
     shortAnswer:
-      "Si aucun créneau n’est disponible, le plus simple est de contacter Sam directement pour voir s’il est possible d’organiser un rendez-vous autrement.",
+      "Vous n’avez pas besoin d’attendre qu’un créneau apparaisse : proposez simplement l’horaire qui vous conviendrait et Sam vous répondra pour le confirmer ou vous proposer une alternative.",
     longAnswer: [
-      "Le planning affiché dépend des disponibilités ouvertes. S’il n’y a rien au moment de votre visite, cela ne veut pas forcément dire qu’aucune solution n’est possible.",
+      "Les horaires proposés par les clients sont des préférences. Le rendez-vous devient confirmé uniquement après la réponse de Sam.",
       "La page Contact reste la meilleure option pour expliquer votre besoin, vos contraintes horaires et voir avec Sam s’il peut vous proposer un autre créneau.",
     ],
     keywords: ["aucun créneau", "aucun creneau", "pas de disponibilité", "pas de disponibilite", "indisponible"],
