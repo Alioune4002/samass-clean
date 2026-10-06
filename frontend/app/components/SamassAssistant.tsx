@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   AssistantResponse,
-  resolveAssistantQuery,
+  resolveAssistantConversation,
   setAssistantServiceCatalog,
 } from "@/lib/assistantEngine";
 import { getServices } from "@/lib/api";
@@ -15,9 +15,9 @@ type Message =
   | { id: string; role: "assistant"; response: AssistantResponse };
 
 const guidedQuestions = [
-  { label: "J’ai besoin de me détendre", query: "Quel massage choisir pour le stress ?" },
+  { label: "Je découvre le tantrique", query: "Je suis curieux du massage tantrique, à quoi m’attendre ?" },
+  { label: "Aide-moi à choisir", query: "Je ne sais pas quel massage choisir, peux-tu m’aider ?" },
   { label: "J’ai des tensions", query: "Quel massage choisir pour les tensions et la fatigue musculaire ?" },
-  { label: "Je découvre le tantrique", query: "Comment se déroule le massage tantrique ?" },
   { label: "Tarifs & durées", query: "Quels sont les tarifs et les durées des massages ?" },
 ];
 
@@ -26,7 +26,7 @@ function welcomeResponse(): AssistantResponse {
     type: "knowledge",
     title: "Votre guide SAMASS",
     shortAnswer:
-      "Dites-moi simplement ce que vous recherchez. Je peux vous orienter vers un massage, expliquer le déroulement, les tarifs, les durées ou la prise de rendez-vous.",
+      "Expliquez-moi ce que vous recherchez avec vos propres mots. Je garde le fil de la conversation et je peux vous orienter vers le massage le plus cohérent, notamment le tantrique, expliquer le cadre, les tarifs, les durées ou la prise de rendez-vous.",
     longAnswer: [],
     links: [],
     suggestions: guidedQuestions.map((item) => item.label),
@@ -91,17 +91,32 @@ export default function SamassAssistant() {
     setResponding(true);
     setOpen(true);
 
+    const history = messages.map((message) =>
+      message.role === "user"
+        ? { role: "user" as const, text: message.text }
+        : {
+            role: "assistant" as const,
+            text:
+              message.response.title +
+              " — " +
+              message.response.shortAnswer +
+              " " +
+              message.response.longAnswer.join(" "),
+          }
+    );
+
     window.setTimeout(() => {
+      const response = resolveAssistantConversation(value, history);
       setMessages((current) => [
         ...current,
         {
           id: `assistant-${Date.now()}`,
           role: "assistant",
-          response: resolveAssistantQuery(value),
+          response,
         },
       ]);
       setResponding(false);
-    }, 260);
+    }, 220);
   }
 
   function submit(event: FormEvent) {
