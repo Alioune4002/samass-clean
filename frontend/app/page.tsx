@@ -227,6 +227,57 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="ritual-tantra-focus" data-ritual-reveal>
+        <div className="ritual-tantra-media">
+          <Image
+            src="/images/samass-room-realistic-2.webp"
+            alt="Le lieu préparé pour une séance de massage tantrique SAMASS"
+            fill
+            sizes="(max-width: 900px) 100vw, 52vw"
+            className="object-cover"
+          />
+        </div>
+
+        <div className="ritual-tantra-copy">
+          <span className="ritual-featured-label dark">Le plus demandé</span>
+          <p className="ritual-eyebrow">MASSAGE TANTRIQUE</p>
+          <h2>
+            Moins dans la tête.
+            <br />
+            Plus présent dans le corps.
+          </h2>
+          <p>
+            Une expérience lente et sensorielle, centrée sur la présence, la
+            respiration et la reconnexion au corps. La séance commence toujours
+            par un échange pour poser un cadre clair et respecter votre niveau
+            de confort.
+          </p>
+
+          <div className="ritual-tantra-points">
+            <span>Lenteur & présence</span>
+            <span>Cadre clair & consentement</span>
+            <span>Séance adaptée à votre rythme</span>
+          </div>
+
+          <div className="ritual-tantra-actions">
+            {services.find((service) => service.title === "Massage Tantrique") ? (
+              <ReservationButton
+                serviceId={
+                  services.find((service) => service.title === "Massage Tantrique")!.id
+                }
+              />
+            ) : (
+              <Link href="/reservation" className="ritual-primary-link">
+                Demander ce massage <span>↗</span>
+              </Link>
+            )}
+            <Link href="/services" className="ritual-quiet-link dark">
+              Comprendre le massage tantrique
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="ritual-massages" data-ritual-reveal>
         <div className="ritual-section-intro ritual-section-intro-light">
           <p className="ritual-eyebrow">LES MASSAGES</p>
@@ -243,9 +294,11 @@ export default function HomePage() {
               <div className="ritual-massage-image">
                 <Image
                   src={
-                    service.image ||
-                    serviceImages[service.title] ||
-                    "/images/samass-room-realistic-1.webp"
+                    service.title === "Massage Tantrique"
+                      ? "/images/samass-room-realistic-2.webp"
+                      : service.image ||
+                        serviceImages[service.title] ||
+                        "/images/samass-room-realistic-1.webp"
                   }
                   alt={service.title}
                   fill
@@ -312,8 +365,8 @@ export default function HomePage() {
         <div className="ritual-place-images">
           <div className="ritual-place-main">
             <Image
-              src="/images/about3.png"
-              alt="Espace de massage SAMASS"
+              src="/images/samass-room-realistic-1.webp"
+              alt="Espace de massage SAMASS avec linge gris"
               fill
               sizes="(max-width: 900px) 100vw, 58vw"
               className="object-cover"
@@ -321,8 +374,8 @@ export default function HomePage() {
           </div>
           <div className="ritual-place-detail">
             <Image
-              src="/images/about1.jpg"
-              alt="Détail de l’espace SAMASS"
+              src="/images/samass-room-realistic-2.webp"
+              alt="Détail naturel de l’espace SAMASS"
               fill
               sizes="(max-width: 900px) 45vw, 26vw"
               className="object-cover"
