@@ -1445,18 +1445,23 @@ function inferFollowUpIntent(
   query: string,
   history: AssistantConversationTurn[]
 ): IntentDetection {
+  const normalized = normalizeText(query);
+  const requestedDuration = extractRequestedDuration(query);
+
+  if (
+    requestedDuration !== null &&
+    (normalized.includes("prix") ||
+      normalized.includes("combien") ||
+      normalized.includes("euro") ||
+      normalized.includes("cout"))
+  ) {
+    return { intent: "pricing", score: 120 };
+  }
+
   const current = detectIntent(query);
   if (current.intent !== "unknown") return current;
 
-  const normalized = normalizeText(query);
-  if (extractRequestedDuration(query) !== null) {
-    if (
-      normalized.includes("prix") ||
-      normalized.includes("combien") ||
-      normalized.includes("euro")
-    ) {
-      return { intent: "pricing", score: 80 };
-    }
+  if (requestedDuration !== null) {
     return { intent: "duration", score: 70 };
   }
 
