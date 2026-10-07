@@ -161,8 +161,8 @@ Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous ce
 `;
 
     const modelCandidates = [
-      "deepseek/deepseek-v4-flash-0731",
-      "deepseek/deepseek-v4.1-flash",
+      "inclusionai/ling-3.0-flash-fin",
+      "poolside/laguna-s-2.1-free",
       "inclusionai/ling-3.1-flash-free",
     ];
 
