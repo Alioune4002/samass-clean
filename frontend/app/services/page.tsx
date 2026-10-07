@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getServices } from "@/lib/api";
 import { Service } from "@/lib/types";
 import ReservationButton from "../components/ReservationButton";
@@ -19,8 +19,18 @@ export default function ServicesPage() {
     void getServices().then(setServices).catch(() => setServices([]));
   }, []);
 
+  const displayedServices = useMemo(
+    () =>
+      [...services].sort((a, b) => {
+        if (a.title === "Massage Tantrique") return -1;
+        if (b.title === "Massage Tantrique") return 1;
+        return 0;
+      }),
+    [services]
+  );
+
   return (
-    <div className="bg-[#0d1d18] text-[#f4f0e8]">
+    <div className="bg-[#0b3f32] text-[#f4f0e8]">
       <section className="min-h-[82svh] px-[5vw] pb-[10vh] pt-[22vh]">
         <p className="samass-kicker text-white/40">MASSAGES · SAMASS</p>
         <h1 className="mt-8 max-w-[1250px] text-[clamp(72px,12vw,185px)] font-extrabold uppercase leading-[.74] tracking-[-.085em]">
@@ -38,7 +48,7 @@ export default function ServicesPage() {
       </section>
 
       <section className="border-t border-white/15 px-[4vw]">
-        {services.map((service, index) => (
+        {displayedServices.map((service, index) => (
           <article
             key={service.id}
             className="grid gap-8 border-b border-white/15 py-12 lg:grid-cols-[70px_1fr_.75fr]"
@@ -48,6 +58,9 @@ export default function ServicesPage() {
             </span>
 
             <div>
+              {service.title === "Massage Tantrique" ? (
+                <span className="ritual-featured-label">Le plus demandé</span>
+              ) : null}
               <h2 className="max-w-3xl text-[clamp(52px,7vw,105px)] font-bold uppercase leading-[.82] tracking-[-.07em]">
                 {service.title.replace("Massage ", "")}
               </h2>
