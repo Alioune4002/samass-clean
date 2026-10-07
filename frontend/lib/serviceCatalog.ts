@@ -20,7 +20,7 @@ export const SAMASS_SERVICE_CATALOG: ServiceCatalogEntry[] = [
       "60": 80,
       "90": 120,
     },
-    image: "/images/relax-massage.jpeg",
+    image: "/images/samass-room-final-1.webp",
   },
   {
     title: "Massage Tonique",
@@ -33,7 +33,7 @@ export const SAMASS_SERVICE_CATALOG: ServiceCatalogEntry[] = [
       "60": 70,
       "90": 115,
     },
-    image: "/images/tonic-massage.jpeg",
+    image: "/images/samass-host-final.webp",
   },
   {
     title: "Massage Tantrique",
@@ -46,7 +46,7 @@ export const SAMASS_SERVICE_CATALOG: ServiceCatalogEntry[] = [
       "90": 120,
       "120": 150,
     },
-    image: "/images/samass-room-realistic-2.webp",
+    image: "/images/samass-room-final-2.webp",
   },
 ];
 

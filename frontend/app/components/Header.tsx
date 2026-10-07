@@ -6,9 +6,23 @@ import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
   { href: "/services", label: "Massages" },
-  { href: "/about", label: "L’approche" },
+  { href: "/about", label: "À propos" },
   { href: "/contact", label: "Contact" },
 ];
+
+function BrandMark() {
+  return (
+    <span className="ritual-brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 64 64" fill="none">
+        <path d="M32 48C22 40 18 31 32 13C46 31 42 40 32 48Z" />
+        <path d="M29 49C18 49 10 43 8 32C20 31 28 36 32 46" />
+        <path d="M35 49C46 49 54 43 56 32C44 31 36 36 32 46" />
+        <path d="M27 48C18 44 14 36 16 25C24 27 29 34 32 44" />
+        <path d="M37 48C46 44 50 36 48 25C40 27 35 34 32 44" />
+      </svg>
+    </span>
+  );
+}
 
 export default function Header() {
   const pathname = usePathname();
@@ -29,9 +43,7 @@ export default function Header() {
       <header className="ritual-header-shell">
         <div className={`ritual-header ${scrolled ? "is-scrolled" : ""}`}>
           <Link href="/" className="ritual-brand">
-            <span className="ritual-brand-mark" aria-hidden="true">
-              <img src="/brand/samass-mark.svg" alt="" />
-            </span>
+            <BrandMark />
             <span>
               <strong>SAMASS</strong>
               <small>Massage · Quimper</small>
@@ -55,10 +67,14 @@ export default function Header() {
               type="button"
               className="ritual-menu-button"
               onClick={() => setOpen((value) => !value)}
-              aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
+              aria-label={open ? "Fermer la navigation" : "Ouvrir la navigation"}
               aria-expanded={open}
             >
-              {open ? "Fermer" : "Menu"}
+              <span className={`ritual-menu-glyph ${open ? "is-open" : ""}`} aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
             </button>
           </div>
         </div>

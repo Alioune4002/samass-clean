@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "ai";
 import { getServiceCatalog } from "@/lib/server/samassStore";
+import {
+  resolveAssistantConversation,
+  setAssistantServiceCatalog,
+} from "@/lib/assistantEngine";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -106,6 +110,7 @@ export async function POST(request: NextRequest) {
     }
 
     const services = await getServiceCatalog();
+    setAssistantServiceCatalog(services);
 
     const serviceContext = services
       .filter((service) => service.is_active !== false)
@@ -127,7 +132,9 @@ CONNAISSANCES CERTAINES SUR SAMASS
 - La réservation fonctionne comme une demande : le client propose une prestation, une durée, une date et une heure, puis Sam confirme personnellement ou propose une alternative.
 - Le massage tantrique est une expérience de bien-être sensorielle, lente, centrée sur la présence et la reconnexion au corps. Il ne constitue pas une promesse de prestation sexuelle.
 - Le cadre, le consentement et les limites du client doivent toujours rester clairs et respectés.
-- Sam est le jeune masseur qui accueille personnellement. Le site peut montrer une photo discrète de lui sans afficher son visage. Ne donne aucune information privée non publiée (adresse exacte, vie personnelle, nom complet, âge, etc.).
+- Sam est un jeune homme noir et c'est lui qui accueille personnellement les clients. Il a été formé à l'Hypoténuse, École française du massage.
+- Si l'utilisateur demande à quoi ressemble Sam, réponds simplement avec les éléments certains ci-dessus. Ne parle jamais du cadrage des photos, de visage caché, de confidentialité, de choix de communication ou de raisons internes.
+- Ne donne aucune information privée non publiée (adresse exacte, vie personnelle, nom complet, âge, etc.).
 - Pour une question médicale, une douleur importante, une grossesse, une blessure, une pathologie ou un traitement : ne pose pas de diagnostic et ne promets pas de bénéfice médical. Conseille de vérifier avec un professionnel de santé et/ou de contacter Sam avant la séance.
 - Si une information sur SAMASS n'est pas dans ce contexte, dis clairement que tu ne peux pas la confirmer et propose de demander à Sam. N'invente jamais.
 - Tu peux tenir une conversation naturelle et répondre aux petites formules sociales, mais tu n'es pas un assistant généraliste du web. Pour les demandes sans rapport avec SAMASS, le massage, la préparation d'une séance ou l'accueil, explique brièvement ton périmètre au lieu d'inventer une recommandation externe.
@@ -166,9 +173,8 @@ Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous ce
 `;
 
     const modelCandidates = [
-      "openai/gpt-5.4-mini",
-      "openai/gpt-5-mini",
       "inclusionai/ling-3.1-flash-free",
+      "poolside/laguna-s-2.1-free",
     ];
 
     let generatedText = "";
@@ -184,7 +190,7 @@ Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous ce
             content: message.content,
           })),
           maxOutputTokens: 700,
-          reasoning: model.startsWith("openai/") ? "low" : "none",
+          reasoning: "none",
           maxRetries: 1,
         });
         generatedText = result.text;
@@ -196,7 +202,33 @@ Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous ce
     }
 
     if (!generatedText) {
-      throw lastError || new Error("Aucun modèle SAMASS disponible.");
+      console.warn("SAMASS free AI unavailable, using local concierge fallback.", lastError);
+
+      const latest = messages[messages.length - 1];
+      const history = messages.slice(0, -1).map((message) => ({
+        role: message.role,
+        text: message.content,
+      }));
+      const fallback = resolveAssistantConversation(latest.content, history);
+
+      const answer = [fallback.shortAnswer, ...fallback.longAnswer.slice(0, 2)]
+        .filter(Boolean)
+        .join("\n\n");
+
+      const firstLink = fallback.links.find((link) =>
+        ["/services", "/reservation", "/contact"].includes(link.href)
+      );
+
+      return NextResponse.json({
+        answer,
+        suggestions: fallback.suggestions.slice(0, 3),
+        action: firstLink
+          ? {
+              label: firstLink.label,
+              href: firstLink.href,
+            }
+          : null,
+      });
     }
 
     return NextResponse.json(parseModelPayload(generatedText));

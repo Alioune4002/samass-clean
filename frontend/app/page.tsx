@@ -51,9 +51,9 @@ const needs: Array<{
 ];
 
 const serviceImages: Record<string, string> = {
-  "Massage Relaxant Tonique": "/images/relax-massage.jpeg",
-  "Massage Tonique": "/images/tonic-massage.jpeg",
-  "Massage Tantrique": "/images/samass-room-realistic-2.webp",
+  "Massage Relaxant Tonique": "/images/samass-room-final-1.webp",
+  "Massage Tonique": "/images/samass-host-final.webp",
+  "Massage Tantrique": "/images/samass-room-final-2.webp",
 };
 
 const notes = [
@@ -122,7 +122,7 @@ export default function HomePage() {
       <section className="ritual-hero">
         <div className="ritual-hero-photo">
           <Image
-            src="/images/samass-room-realistic-1.webp"
+            src="/images/samass-room-final-1.webp"
             alt="Atmosphère SAMASS"
             fill
             priority
@@ -230,7 +230,7 @@ export default function HomePage() {
       <section className="ritual-tantra-focus" data-ritual-reveal>
         <div className="ritual-tantra-media">
           <Image
-            src="/images/samass-room-realistic-2.webp"
+            src="/images/samass-room-final-2.webp"
             alt="Le lieu préparé pour une séance de massage tantrique SAMASS"
             fill
             sizes="(max-width: 900px) 100vw, 52vw"
@@ -295,10 +295,10 @@ export default function HomePage() {
                 <Image
                   src={
                     service.title === "Massage Tantrique"
-                      ? "/images/samass-room-realistic-2.webp"
-                      : service.image ||
-                        serviceImages[service.title] ||
-                        "/images/samass-room-realistic-1.webp"
+                      ? "/images/samass-room-final-2.webp"
+                      : serviceImages[service.title] ||
+                        service.image ||
+                        "/images/samass-room-final-1.webp"
                   }
                   alt={service.title}
                   fill
@@ -365,7 +365,7 @@ export default function HomePage() {
         <div className="ritual-place-images">
           <div className="ritual-place-main">
             <Image
-              src="/images/samass-room-realistic-1.webp"
+              src="/images/samass-room-final-1.webp"
               alt="Espace de massage SAMASS avec linge gris"
               fill
               sizes="(max-width: 900px) 100vw, 58vw"
@@ -374,7 +374,7 @@ export default function HomePage() {
           </div>
           <div className="ritual-place-detail">
             <Image
-              src="/images/samass-room-realistic-2.webp"
+              src="/images/samass-room-final-2.webp"
               alt="Détail naturel de l’espace SAMASS"
               fill
               sizes="(max-width: 900px) 45vw, 26vw"

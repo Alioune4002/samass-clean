@@ -300,7 +300,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "L'envoi d'email est momentanément indisponible. Merci de contacter SAMASS directement via son numéro de téléphone ( 07 45 55 87 31 ) ou l'un de ses adresses email ( samassbysam@gmail.com / contact@samass.com ).",
+          "L'envoi d'email est momentanément indisponible. Merci de contacter SAMASS directement via son numéro de téléphone ( 07 45 55 87 31 ) ou par email à contact@samassbysam.com.",
       },
       { status: 500 }
     );

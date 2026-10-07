@@ -53,7 +53,7 @@ export default function Reservation() {
           </button>
         </div>
         <div className="ritual-reservation-hero-media">
-          <Image src="/images/samass-room-realistic-1.webp" alt="Espace SAMASS" fill priority sizes="(max-width: 900px) 100vw, 48vw" className="object-cover" />
+          <Image src="/images/samass-room-final-1.webp" alt="Espace SAMASS" fill priority sizes="(max-width: 900px) 100vw, 48vw" className="object-cover" />
         </div>
       </section>
 

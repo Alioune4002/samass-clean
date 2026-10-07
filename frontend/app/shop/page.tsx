@@ -91,7 +91,7 @@ export default function Shop() {
       setCart([]);
       setIsCheckoutOpen(false);
     } catch (error) {
-      setMessage(`Erreur lors de l'envoi. Vérifiez votre connexion ou contactez Sammy à <a href="mailto:samassbysam@gmail.com">samassbysam@gmail.com</a>.`);
+      setMessage(`Erreur lors de l'envoi. Vérifiez votre connexion ou contactez Sammy à <a href="mailto:contact@samassbysam.com">contact@samassbysam.com</a>.`);
       console.error('Error submitting order:', error);
     } finally {
       setIsSubmitting(false);
@@ -122,7 +122,7 @@ export default function Shop() {
                   whileHover={product.stock > 0 && product.is_active ? { scale: 1.05 } : {}}
                 >
                   <img
-                    src={product.image ? product.image : '/images/about1.jpg'}
+                    src={product.image ? product.image : '/images/samass-room-final-1.webp'}
                     alt={product.name}
                     className={`w-full h-32 sm:h-48 object-cover rounded-t-lg ${product.stock === 0 || !product.is_active ? 'blur-sm' : ''}`}
                   />

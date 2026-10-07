@@ -56,7 +56,7 @@ export default function ContactPage() {
           </div>
           <div>
             <small>Email</small>
-            <a href="mailto:samassbysam@gmail.com">samassbysam@gmail.com</a>
+            <a href="mailto:contact@samassbysam.com">contact@samassbysam.com</a>
           </div>
           <div>
             <small>Lieu</small>

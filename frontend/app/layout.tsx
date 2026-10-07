@@ -51,7 +51,7 @@ export const metadata = {
       "Une expérience lente, sensorielle et sur-mesure. Massage tantrique, relaxant tonique et tonique à Quimper.",
     images: [
       {
-        url: "/images/samass-room-realistic-2.webp",
+        url: "/images/samass-room-final-2.webp",
         width: 1200,
         height: 630,
         alt: "Espace de massage SAMASS à Quimper",
@@ -67,7 +67,7 @@ export const metadata = {
     title: "SAMASS — Massage tantrique & bien-être à Quimper",
     description:
       "Massage tantrique, relaxant tonique et tonique à Quimper.",
-    images: ["/images/samass-room-realistic-2.webp"],
+    images: ["/images/samass-room-final-2.webp"],
   },
   robots: {
     index: true,
@@ -90,7 +90,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 "Massages tantriques, relaxants toniques et toniques à Quimper.",
               url: "https://samassbysam.com",
               telephone: "+33745558731",
-              email: "samassbysam@gmail.com",
+              email: "contact@samassbysam.com",
               address: {
                 "@type": "PostalAddress",
                 addressLocality: "Quimper",
@@ -100,7 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               areaServed: "Finistère",
               priceRange: "€€",
               image:
-                "https://samassbysam.com/images/samass-room-realistic-2.webp",
+                "https://samassbysam.com/images/samass-room-final-2.webp",
               sameAs: [
                 "https://www.facebook.com/share/1GW8VSe5Jt/?mibextid=wwXIfr",
               ],

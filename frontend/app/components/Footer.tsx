@@ -25,7 +25,7 @@ export default function Footer() {
           <div>
             <small>Contact</small>
             <a href="tel:+33745558731">07 45 55 87 31</a>
-            <a href="mailto:samassbysam@gmail.com">samassbysam@gmail.com</a>
+            <a href="mailto:contact@samassbysam.com">contact@samassbysam.com</a>
             <span>Quimper · Finistère</span>
           </div>
         </div>
