@@ -13,7 +13,7 @@ export function middleware(req: NextRequest) {
   }
 
   
-  const token = req.cookies.get("admin_token");
+  const token = req.cookies.get("samass_admin_session");
 
   if (!token) {
     const loginUrl = new URL(`${PROTECTED_PATH}/login`, req.url);
