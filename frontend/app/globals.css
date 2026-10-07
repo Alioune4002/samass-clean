@@ -3130,20 +3130,17 @@ a {
   }
 
   .assistant-v3-suggestions {
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    overflow: visible;
     margin-left: 45px;
-    padding-bottom: 4px;
-    scrollbar-width: none;
-  }
-
-  .assistant-v3-suggestions::-webkit-scrollbar {
-    display: none;
+    padding: 0 8px 4px 0;
   }
 
   .assistant-v3-suggestions button {
-    flex: 0 0 auto;
-    white-space: nowrap;
+    flex: 0 1 auto;
+    max-width: 100%;
+    white-space: normal;
+    text-align: left;
   }
 
   .assistant-v3-compose {
