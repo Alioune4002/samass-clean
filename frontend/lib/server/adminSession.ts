@@ -5,10 +5,17 @@ const COOKIE_NAME = "samass_admin_session";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
 function getAdminPassword() {
-  const value =
-    process.env.SAMASS_ADMIN_SECRET_V2 || "";
+  const value = process.env.ADMIN_PASSWORD || "";
   if (!value) {
     throw new Error("Mot de passe admin non configuré.");
+  }
+  return value;
+}
+
+function getSessionSecret() {
+  const value = process.env.SAMASS_ADMIN_SECRET_V2 || "";
+  if (!value) {
+    throw new Error("Secret de session admin non configuré.");
   }
   return value;
 }
@@ -16,7 +23,7 @@ function getAdminPassword() {
 function sessionToken() {
   return crypto
     .createHash("sha256")
-    .update(`samass-admin:${getAdminPassword()}`)
+    .update(`samass-admin-session:${getSessionSecret()}`)
     .digest("hex");
 }
 
