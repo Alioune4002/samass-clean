@@ -14,7 +14,8 @@ export async function GET() {
   const expectedPrice = tantrique?.durations_prices?.[90] ?? null;
 
   const candidates = [
-    "zai/glm-5.3-flash",
+    "inclusionai/ling-3.0-flash-fin",
+    "poolside/laguna-s-2.1-free",
     "inclusionai/ling-3.1-flash-free",
   ];
 
