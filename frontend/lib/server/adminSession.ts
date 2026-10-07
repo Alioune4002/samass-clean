@@ -23,7 +23,7 @@ function getSessionSecret() {
 function sessionToken() {
   return crypto
     .createHash("sha256")
-    .update(`samass-admin-session:${getSessionSecret()}`)
+    .update(`samass-admin-session:${getSessionSecret()}:${getAdminPassword()}`)
     .digest("hex");
 }
 
