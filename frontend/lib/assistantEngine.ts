@@ -460,7 +460,7 @@ function buildOutOfScopeResponse(): AssistantResponse {
 
 function buildServiceLinks(serviceTitle: string): AssistantLink[] {
   return [
-    { href: "/reservation", label: `Réserver ${serviceTitle}` },
+    { href: "/reservation", label: `Demander ${serviceTitle}` },
     { href: "/services", label: "Voir les massages" },
     { href: "/contact", label: "Contacter Sam" },
   ];
