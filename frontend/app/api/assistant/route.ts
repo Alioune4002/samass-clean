@@ -48,8 +48,16 @@ function parseModelPayload(text: string): AssistantPayload {
     .replace(/^\`\`\`json\s*/i, "")
     .replace(/\s*\`\`\`$/i, "");
 
+  let jsonCandidate = stripped;
+  const embeddedJsonStart = stripped.lastIndexOf('{"answer"');
+  const embeddedJsonEnd = stripped.lastIndexOf("}");
+
+  if (embeddedJsonStart >= 0 && embeddedJsonEnd > embeddedJsonStart) {
+    jsonCandidate = stripped.slice(embeddedJsonStart, embeddedJsonEnd + 1);
+  }
+
   try {
-    const parsed = JSON.parse(stripped) as Partial<AssistantPayload>;
+    const parsed = JSON.parse(jsonCandidate) as Partial<AssistantPayload>;
     const answer =
       typeof parsed.answer === "string" && parsed.answer.trim()
         ? parsed.answer.trim()
@@ -121,7 +129,8 @@ CONNAISSANCES CERTAINES SUR SAMASS
 - Le cadre, le consentement et les limites du client doivent toujours rester clairs et respectés.
 - Sam est le jeune masseur qui accueille personnellement. Le site peut montrer une photo discrète de lui sans afficher son visage. Ne donne aucune information privée non publiée (adresse exacte, vie personnelle, nom complet, âge, etc.).
 - Pour une question médicale, une douleur importante, une grossesse, une blessure, une pathologie ou un traitement : ne pose pas de diagnostic et ne promets pas de bénéfice médical. Conseille de vérifier avec un professionnel de santé et/ou de contacter Sam avant la séance.
-- Si une information n'est pas dans ce contexte, dis clairement que tu ne peux pas la confirmer et propose de demander à Sam. N'invente jamais.
+- Si une information sur SAMASS n'est pas dans ce contexte, dis clairement que tu ne peux pas la confirmer et propose de demander à Sam. N'invente jamais.
+- Tu peux tenir une conversation naturelle et répondre aux petites formules sociales, mais tu n'es pas un assistant généraliste du web. Pour les demandes sans rapport avec SAMASS, le massage, la préparation d'une séance ou l'accueil, explique brièvement ton périmètre au lieu d'inventer une recommandation externe.
 
 PRESTATIONS ET TARIFS ACTUELS
 ${JSON.stringify(serviceContext)}
@@ -152,7 +161,8 @@ Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous ce
 `;
 
     const modelCandidates = [
-      "zai/glm-5.3-flash",
+      "deepseek/deepseek-v4-flash-0731",
+      "deepseek/deepseek-v4.1-flash",
       "inclusionai/ling-3.1-flash-free",
     ];
 
