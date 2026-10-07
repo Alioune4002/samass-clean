@@ -151,17 +151,39 @@ Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous ce
 }
 `;
 
-    const result = await generateText({
-      model: "inclusionai/ling-3.1-flash-free",
-      system,
-      messages: messages.map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
-      maxOutputTokens: 700,
-    });
+    const modelCandidates = [
+      "zai/glm-5.3-flash",
+      "inclusionai/ling-3.1-flash-free",
+    ];
 
-    return NextResponse.json(parseModelPayload(result.text));
+    let generatedText = "";
+    let lastError: unknown = null;
+
+    for (const model of modelCandidates) {
+      try {
+        const result = await generateText({
+          model,
+          system,
+          messages: messages.map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
+          maxOutputTokens: 700,
+          maxRetries: 1,
+        });
+        generatedText = result.text;
+        break;
+      } catch (error) {
+        lastError = error;
+        console.warn(`SAMASS assistant model unavailable: ${model}`);
+      }
+    }
+
+    if (!generatedText) {
+      throw lastError || new Error("Aucun modèle SAMASS disponible.");
+    }
+
+    return NextResponse.json(parseModelPayload(generatedText));
   } catch (error) {
     console.error("SAMASS assistant error:", error);
     return NextResponse.json(
