@@ -92,9 +92,11 @@ export default function ServicesPage() {
             <div className="relative min-h-[52vh] overflow-hidden bg-[#172a23]">
               <Image
                 src={
-                  service.image ||
-                  serviceImages[service.title] ||
-                  "/images/samass-room-realistic-1.webp"
+                  service.title === "Massage Tantrique"
+                    ? "/images/samass-room-realistic-2.webp"
+                    : service.image ||
+                      serviceImages[service.title] ||
+                      "/images/samass-room-realistic-1.webp"
                 }
                 alt={service.title}
                 fill
