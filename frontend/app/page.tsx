@@ -53,7 +53,7 @@ const needs: Array<{
 const serviceImages: Record<string, string> = {
   "Massage Relaxant Tonique": "/images/relax-massage.jpeg",
   "Massage Tonique": "/images/tonic-massage.jpeg",
-  "Massage Tantrique": "/images/tantric-massage.jpeg",
+  "Massage Tantrique": "/images/samass-room-realistic-2.webp",
 };
 
 const notes = [
@@ -122,7 +122,7 @@ export default function HomePage() {
       <section className="ritual-hero">
         <div className="ritual-hero-photo">
           <Image
-            src="/images/about1.jpg"
+            src="/images/samass-room-realistic-1.webp"
             alt="Atmosphère SAMASS"
             fill
             priority
@@ -245,7 +245,7 @@ export default function HomePage() {
                   src={
                     service.image ||
                     serviceImages[service.title] ||
-                    "/images/about3.png"
+                    "/images/samass-room-realistic-1.webp"
                   }
                   alt={service.title}
                   fill
