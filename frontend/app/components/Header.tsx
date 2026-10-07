@@ -30,8 +30,7 @@ export default function Header() {
         <div className={`ritual-header ${scrolled ? "is-scrolled" : ""}`}>
           <Link href="/" className="ritual-brand">
             <span className="ritual-brand-mark" aria-hidden="true">
-              <i />
-              <i />
+              <img src="/brand/samass-mark.svg" alt="" />
             </span>
             <span>
               <strong>SAMASS</strong>
