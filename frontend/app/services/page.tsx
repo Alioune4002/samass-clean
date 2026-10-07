@@ -9,7 +9,7 @@ import ReservationButton from "../components/ReservationButton";
 const serviceImages: Record<string, string> = {
   "Massage Relaxant Tonique": "/images/relax-massage.jpeg",
   "Massage Tonique": "/images/tonic-massage.jpeg",
-  "Massage Tantrique": "/images/tantric-massage.jpeg",
+  "Massage Tantrique": "/images/samass-room-realistic-2.webp",
 };
 
 export default function ServicesPage() {
@@ -94,7 +94,7 @@ export default function ServicesPage() {
                 src={
                   service.image ||
                   serviceImages[service.title] ||
-                  "/images/about3.png"
+                  "/images/samass-room-realistic-1.webp"
                 }
                 alt={service.title}
                 fill
