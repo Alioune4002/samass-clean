@@ -13,7 +13,6 @@ export default function AdminDashboard() {
     messages: 0,
     upcoming: [] as Booking[],
   });
-
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,28 +24,26 @@ export default function AdminDashboard() {
         ]);
 
         const todayISO = new Date().toISOString().slice(0, 10);
-
-        const today = bookings.filter(
-          (b: any) =>
-            b.status === "confirmed" &&
-            b.availability.start_datetime.startsWith(todayISO)
-        );
-
-        const upcoming = bookings
-          .filter((b: any) => b.status === "confirmed")
-          .sort(
-            (a: any, b: any) =>
-              new Date(a.availability.start_datetime).getTime() -
-              new Date(b.availability.start_datetime).getTime()
-          )
-          .slice(0, 5);
+        const confirmed = bookings.filter((booking) => booking.status === "confirmed");
 
         setStats({
-          todayBookings: today.length,
-          pending: bookings.filter((b: any) => b.status === "pending").length,
-          confirmed: bookings.filter((b: any) => b.status === "confirmed").length,
+          todayBookings: confirmed.filter((booking) =>
+            booking.availability.start_datetime.startsWith(todayISO)
+          ).length,
+          pending: bookings.filter((booking) => booking.status === "pending").length,
+          confirmed: confirmed.length,
           messages: messages.length,
-          upcoming,
+          upcoming: confirmed
+            .filter(
+              (booking) =>
+                new Date(booking.availability.start_datetime).getTime() >= Date.now()
+            )
+            .sort(
+              (a, b) =>
+                new Date(a.availability.start_datetime).getTime() -
+                new Date(b.availability.start_datetime).getTime()
+            )
+            .slice(0, 5),
         });
       } catch (err) {
         console.error("Erreur chargement dashboard :", err);
@@ -55,86 +52,72 @@ export default function AdminDashboard() {
       }
     }
 
-    load();
+    void load();
   }, []);
 
   return (
-    <div className="text-white space-y-8">
-      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
-
-      {/* ---- CARDS STATS ---- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {loading ? (
-          <>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-[#1A1A1A] p-6 rounded-xl border border-gray-800 shadow-lg"
-              >
-                <Skeleton className="h-4 w-2/3 mb-3" />
-                <Skeleton className="h-8 w-1/3" />
-              </div>
-            ))}
-          </>
-        ) : (
-          <>
-            <StatCard title="RDV aujourd'hui" value={stats.todayBookings} />
-            <StatCard title="En attente" value={stats.pending} />
-            <StatCard title="Confirmés" value={stats.confirmed} />
-            <StatCard title="Messages reçus" value={stats.messages} />
-          </>
-        )}
+    <div className="space-y-8 text-white">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[.18em] text-emerald-400/70">
+          Espace Sam
+        </p>
+        <h1 className="mt-2 text-3xl font-bold">Vue d’ensemble</h1>
       </div>
 
-      {/* ---- PROCHAINS RDV ---- */}
-      <div className="bg-[#1A1A1A] p-6 rounded-xl border border-gray-800">
-        <h2 className="text-xl font-semibold mb-4 text-emerald-400">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-white/10 bg-white/[.04] p-6">
+                <Skeleton className="mb-3 h-4 w-2/3" />
+                <Skeleton className="h-8 w-1/3" />
+              </div>
+            ))
+          : <>
+              <StatCard title="RDV aujourd’hui" value={stats.todayBookings} />
+              <StatCard title="Demandes à traiter" value={stats.pending} />
+              <StatCard title="Confirmés" value={stats.confirmed} />
+              <StatCard title="Messages" value={stats.messages} />
+            </>}
+      </div>
+
+      <section className="rounded-[28px] border border-white/10 bg-white/[.04] p-6">
+        <h2 className="text-xl font-semibold text-emerald-300">
           Prochains rendez-vous confirmés
         </h2>
 
         {loading ? (
-          <div className="space-y-3">
+          <div className="mt-5 space-y-3">
             {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="p-4 bg-[#0D0D0D] rounded-lg border border-gray-800 shadow-lg"
-              >
-                <Skeleton className="h-4 w-1/2 mb-2" />
-                <Skeleton className="h-3 w-2/3 mb-2" />
-                <Skeleton className="h-3 w-1/3" />
-              </div>
+              <Skeleton key={i} className="h-20 w-full rounded-2xl" />
             ))}
           </div>
         ) : stats.upcoming.length === 0 ? (
-          <p className="text-gray-500">Aucun rendez-vous prochainement.</p>
+          <p className="mt-5 text-white/45">Aucun rendez-vous confirmé à venir.</p>
         ) : (
-          <div className="space-y-4">
-            {stats.upcoming.map((b: any) => (
-              <div
-                key={b.id}
-                className="p-4 bg-[#0D0D0D] rounded-lg border border-gray-800 shadow-lg"
-              >
-                <p className="text-white font-semibold">{b.client_name}</p>
-                <p className="text-gray-400 text-sm">{b.service.title}</p>
-                <p className="text-gray-400 text-sm">
-                  {new Date(b.availability.start_datetime).toLocaleString(
-                    "fr-FR"
-                  )}
-                </p>
+          <div className="mt-5 divide-y divide-white/10">
+            {stats.upcoming.map((booking) => (
+              <div key={booking.id} className="grid gap-2 py-4 md:grid-cols-[1fr_auto]">
+                <div>
+                  <strong>{booking.client_name}</strong>
+                  <p className="mt-1 text-sm text-white/50">{booking.service.title}</p>
+                </div>
+                <time className="text-sm text-emerald-300/80">
+                  {new Date(booking.availability.start_datetime).toLocaleString("fr-FR")}
+                </time>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
 
 function StatCard({ title, value }: { title: string; value: number }) {
   return (
-    <div className="bg-[#1A1A1A] p-6 rounded-xl border border-gray-800 shadow-lg flex flex-col items-center justify-center">
-      <h3 className="text-gray-300 text-sm">{title}</h3>
-      <p className="text-4xl font-bold mt-2 text-emerald-400">{value}</p>
+    <div className="rounded-2xl border border-white/10 bg-white/[.04] p-6">
+      <h3 className="text-sm text-white/50">{title}</h3>
+      <p className="mt-3 text-4xl font-semibold text-emerald-300">{value}</p>
     </div>
   );
 }
