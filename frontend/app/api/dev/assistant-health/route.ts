@@ -13,7 +13,7 @@ export async function GET() {
   const tantrique = services.find((service) => service.title === "Massage Tantrique");
 
   const result = await generateText({
-    model: "openai/gpt-6-luna",
+    model: "inclusionai/ling-3.1-flash-free",
     system:
       "Tu testes le moteur du Guide SAMASS. Réponds uniquement par une phrase française courte et factuelle.",
     prompt: `Le tarif 90 minutes du massage tantrique fourni par le catalogue est ${tantrique?.durations_prices?.[90]} €. Confirme ce tarif en une phrase.`,

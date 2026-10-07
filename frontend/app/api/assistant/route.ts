@@ -152,7 +152,7 @@ Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous ce
 `;
 
     const result = await generateText({
-      model: "openai/gpt-6-luna",
+      model: "inclusionai/ling-3.1-flash-free",
       system,
       messages: messages.map((message) => ({
         role: message.role,
