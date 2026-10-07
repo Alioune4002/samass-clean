@@ -3,35 +3,60 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import {
-  AssistantResponse,
-  resolveAssistantConversation,
-  setAssistantServiceCatalog,
-} from "@/lib/assistantEngine";
-import { getServices } from "@/lib/api";
 
-type Message =
-  | { id: string; role: "user"; text: string }
-  | { id: string; role: "assistant"; response: AssistantResponse };
+type AssistantAction = {
+  label: string;
+  href: "/services" | "/reservation" | "/contact";
+};
 
-const guidedQuestions = [
-  { label: "Je découvre le tantrique", query: "Je suis curieux du massage tantrique, à quoi m’attendre ?" },
-  { label: "Aide-moi à choisir", query: "Je ne sais pas quel massage choisir, peux-tu m’aider ?" },
-  { label: "J’ai des tensions", query: "Quel massage choisir pour les tensions et la fatigue musculaire ?" },
-  { label: "Tarifs & durées", query: "Quels sont les tarifs et les durées des massages ?" },
+type Message = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  suggestions?: string[];
+  action?: AssistantAction | null;
+  time: string;
+};
+
+const starterSuggestions = [
+  "Je découvre le tantrique",
+  "Aide-moi à choisir",
+  "Que dois-je prévoir avant de venir ?",
+  "Quels sont les tarifs ?",
 ];
 
-function welcomeResponse(): AssistantResponse {
-  return {
-    type: "knowledge",
-    title: "Votre guide SAMASS",
-    shortAnswer:
-      "Expliquez-moi ce que vous recherchez avec vos propres mots. Je garde le fil de la conversation et je peux vous orienter vers le massage le plus cohérent, notamment le tantrique, expliquer le cadre, les tarifs, les durées ou la prise de rendez-vous.",
-    longAnswer: [],
-    links: [],
-    suggestions: guidedQuestions.map((item) => item.label),
-    matches: [],
-  };
+const welcomeMessage: Message = {
+  id: "welcome",
+  role: "assistant",
+  content:
+    "Bonjour ! Je suis le Guide SAMASS. Je peux vous aider à choisir le massage qui vous correspond, vous expliquer le déroulement, les tarifs ou encore vous préparer pour votre rendez-vous. Comment puis-je vous aider aujourd’hui ?",
+  suggestions: starterSuggestions,
+  action: null,
+  time: "",
+};
+
+function nowLabel() {
+  return new Date().toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function LotusMark({ small = false }: { small?: boolean }) {
+  return (
+    <span
+      className={small ? "samass-lotus is-small" : "samass-lotus"}
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 64 64" fill="none">
+        <path d="M32 48C22 40 18 31 32 13C46 31 42 40 32 48Z" />
+        <path d="M29 49C18 49 10 43 8 32C20 31 28 36 32 46" />
+        <path d="M35 49C46 49 54 43 56 32C44 31 36 36 32 46" />
+        <path d="M27 48C18 44 14 36 16 25C24 27 29 34 32 44" />
+        <path d="M37 48C46 44 50 36 48 25C40 27 35 34 32 44" />
+      </svg>
+    </span>
+  );
 }
 
 export default function SamassAssistant() {
@@ -43,85 +68,137 @@ export default function SamassAssistant() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [responding, setResponding] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { id: "welcome", role: "assistant", response: welcomeResponse() },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
+  const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    let active = true;
-    void getServices()
-      .then((services) => {
-        if (active) setAssistantServiceCatalog(services);
-      })
-      .catch(() => undefined);
-
-    return () => {
-      active = false;
-    };
+    try {
+      const saved = sessionStorage.getItem("samass-guide-thread");
+      if (saved) {
+        const parsed = JSON.parse(saved) as Message[];
+        if (Array.isArray(parsed) && parsed.length) {
+          setMessages(parsed.slice(-24));
+        }
+      }
+    } catch {
+      // Une session corrompue ne doit jamais casser le guide.
+    } finally {
+      setHydrated(true);
+    }
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
+    try {
+      sessionStorage.setItem(
+        "samass-guide-thread",
+        JSON.stringify(messages.slice(-24))
+      );
+    } catch {
+      // Le chat reste utilisable même si sessionStorage est indisponible.
+    }
+  }, [messages, hydrated]);
+
+  useEffect(() => {
     if (!open || !scrollRef.current) return;
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    requestAnimationFrame(() => {
+      if (!scrollRef.current) return;
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    });
   }, [messages, responding, open]);
 
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  const latestResponse = useMemo(() => {
-    return [...messages]
-      .reverse()
-      .find(
-        (message): message is Extract<Message, { role: "assistant" }> =>
-          message.role === "assistant"
-      )?.response;
-  }, [messages]);
+  const latestAssistant = useMemo(
+    () =>
+      [...messages]
+        .reverse()
+        .find((message) => message.role === "assistant"),
+    [messages]
+  );
 
-  function ask(question: string) {
+  async function ask(question: string) {
     const value = question.trim();
     if (!value || responding) return;
 
-    setMessages((current) => [
-      ...current,
-      { id: `user-${Date.now()}`, role: "user", text: value },
-    ]);
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: value,
+      time: nowLabel(),
+    };
+
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
     setInput("");
     setResponding(true);
     setOpen(true);
 
-    const history = messages.map((message) =>
-      message.role === "user"
-        ? { role: "user" as const, text: message.text }
-        : {
-            role: "assistant" as const,
-            text:
-              message.response.title +
-              " — " +
-              message.response.shortAnswer +
-              " " +
-              message.response.longAnswer.join(" "),
-          }
-    );
+    try {
+      const response = await fetch("/api/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: nextMessages.map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
+        }),
+      });
 
-    window.setTimeout(() => {
-      const response = resolveAssistantConversation(value, history);
+      if (!response.ok) {
+        throw new Error(`Assistant HTTP ${response.status}`);
+      }
+
+      const payload = (await response.json()) as {
+        answer?: string;
+        suggestions?: string[];
+        action?: AssistantAction | null;
+      };
+
+      const answer =
+        typeof payload.answer === "string" && payload.answer.trim()
+          ? payload.answer.trim()
+          : "Je n’ai pas réussi à répondre correctement. Pouvez-vous reformuler ?";
+
       setMessages((current) => [
         ...current,
         {
           id: `assistant-${Date.now()}`,
           role: "assistant",
-          response,
+          content: answer,
+          suggestions: Array.isArray(payload.suggestions)
+            ? payload.suggestions.slice(0, 3)
+            : [],
+          action: payload.action ?? null,
+          time: nowLabel(),
         },
       ]);
+    } catch (error) {
+      console.error(error);
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-error-${Date.now()}`,
+          role: "assistant",
+          content:
+            "Je rencontre un petit problème de connexion. Réessayez dans quelques instants ; si votre demande est urgente, vous pouvez écrire directement à Sam.",
+          suggestions: [],
+          action: { label: "Contacter Sam", href: "/contact" },
+          time: nowLabel(),
+        },
+      ]);
+    } finally {
       setResponding(false);
-    }, 220);
+    }
   }
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    ask(input);
+    void ask(input);
   }
 
   if (shouldHide) return null;
@@ -131,14 +208,11 @@ export default function SamassAssistant() {
       {!open ? (
         <button
           type="button"
-          className="ritual-assistant-launcher"
+          className="ritual-assistant-launcher assistant-v3-launcher"
           onClick={() => setOpen(true)}
-          aria-label="Ouvrir le guide SAMASS"
+          aria-label="Ouvrir le Guide SAMASS"
         >
-          <span className="ritual-assistant-symbol" aria-hidden="true">
-            <i />
-            <i />
-          </span>
+          <LotusMark small />
           <span>
             <strong>Besoin d’aide pour choisir ?</strong>
             <small>Guide SAMASS</small>
@@ -151,141 +225,131 @@ export default function SamassAssistant() {
           <button
             type="button"
             aria-label="Fermer le guide"
-            className="ritual-assistant-backdrop"
+            className="ritual-assistant-backdrop assistant-v3-backdrop"
             onClick={() => setOpen(false)}
           />
 
           <section
-            className="ritual-assistant-panel"
+            className="assistant-v3-panel"
             role="dialog"
             aria-modal="true"
             aria-label="Guide SAMASS"
           >
-            <header className="ritual-assistant-head">
-              <div className="ritual-assistant-head-title">
-                <span className="ritual-assistant-symbol" aria-hidden="true">
-                  <i />
-                  <i />
-                </span>
+            <header className="assistant-v3-header">
+              <div className="assistant-v3-identity">
+                <LotusMark />
                 <div>
-                  <p>Guide SAMASS</p>
-                  <small>Choisir sans jargon, à votre rythme.</small>
+                  <h2>Guide SAMASS</h2>
+                  <p>Assistant bien-être à votre écoute</p>
                 </div>
               </div>
 
               <button
                 type="button"
+                className="assistant-v3-close"
                 onClick={() => setOpen(false)}
-                aria-label="Fermer"
               >
+                <span aria-hidden="true">×</span>
                 Fermer
               </button>
             </header>
 
-            <div className="ritual-assistant-thread" ref={scrollRef}>
-              {messages.map((message) => {
-                if (message.role === "user") {
-                  return (
-                    <div key={message.id} className="ritual-assistant-user">
-                      {message.text}
+            <div className="assistant-v3-thread" ref={scrollRef}>
+              {messages.map((message) =>
+                message.role === "assistant" ? (
+                  <div
+                    key={message.id}
+                    className="assistant-v3-row assistant-v3-row-assistant"
+                  >
+                    <LotusMark small />
+                    <div className="assistant-v3-stack">
+                      <div className="assistant-v3-bubble assistant-v3-assistant-bubble">
+                        <p>{message.content}</p>
+                      </div>
+                      {message.time ? (
+                        <time className="assistant-v3-time">{message.time}</time>
+                      ) : null}
+
+                      {message.id === latestAssistant?.id &&
+                      message.action ? (
+                        <Link
+                          href={message.action.href}
+                          className="assistant-v3-action"
+                          onClick={() => setOpen(false)}
+                        >
+                          {message.action.label} <span>↗</span>
+                        </Link>
+                      ) : null}
                     </div>
-                  );
-                }
-
-                const response = message.response;
-                return (
-                  <article key={message.id} className="ritual-assistant-answer">
-                    <p className="ritual-assistant-label">{response.title}</p>
-                    <p className="ritual-assistant-main">
-                      {response.shortAnswer}
-                    </p>
-
-                    {response.longAnswer.length ? (
-                      <div className="ritual-assistant-detail">
-                        {response.longAnswer.slice(0, 3).map((paragraph, index) => (
-                          <p key={`${message.id}-${index}`}>{paragraph}</p>
-                        ))}
+                  </div>
+                ) : (
+                  <div
+                    key={message.id}
+                    className="assistant-v3-row assistant-v3-row-user"
+                  >
+                    <div className="assistant-v3-stack">
+                      <div className="assistant-v3-bubble assistant-v3-user-bubble">
+                        <p>{message.content}</p>
                       </div>
-                    ) : null}
-
-                    {response.links.length ? (
-                      <div className="ritual-assistant-links">
-                        {response.links.slice(0, 3).map((link) => (
-                          <Link
-                            key={`${message.id}-${link.href}-${link.label}`}
-                            href={link.href}
-                            onClick={() => setOpen(false)}
-                          >
-                            {link.label} <span>↗</span>
-                          </Link>
-                        ))}
-                      </div>
-                    ) : null}
-                  </article>
-                );
-              })}
+                      <time className="assistant-v3-time assistant-v3-user-time">
+                        {message.time}
+                        <span aria-hidden="true">✓✓</span>
+                      </time>
+                    </div>
+                  </div>
+                )
+              )}
 
               {responding ? (
-                <div className="ritual-assistant-thinking">
-                  <span />
-                  <span />
-                  <span />
+                <div className="assistant-v3-row assistant-v3-row-assistant">
+                  <LotusMark small />
+                  <div className="assistant-v3-thinking" aria-label="Réponse en cours">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
                 </div>
               ) : null}
 
-              <div className="ritual-assistant-guides">
-                <p>Vous pouvez commencer par :</p>
-                <div>
-                  {guidedQuestions.map((item) => (
+              {!responding && latestAssistant?.suggestions?.length ? (
+                <div className="assistant-v3-suggestions">
+                  {latestAssistant.suggestions.map((suggestion) => (
                     <button
-                      key={item.label}
+                      key={suggestion}
                       type="button"
-                      onClick={() => ask(item.query)}
+                      onClick={() => void ask(suggestion)}
                     >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {latestResponse?.suggestions?.length ? (
-                <div className="ritual-assistant-followups">
-                  {latestResponse.suggestions.slice(0, 3).map((question) => (
-                    <button
-                      key={question}
-                      type="button"
-                      onClick={() => ask(question)}
-                    >
-                      {question}
+                      {suggestion}
                     </button>
                   ))}
                 </div>
               ) : null}
             </div>
 
-            <form className="ritual-assistant-form" onSubmit={submit}>
+            <form className="assistant-v3-compose" onSubmit={submit}>
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 rows={1}
-                placeholder="Écrivez comme vous parleriez à Sam…"
-                aria-label="Votre question"
+                maxLength={1600}
+                placeholder="Écrivez votre message…"
+                aria-label="Votre message"
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
-                    ask(input);
+                    void ask(input);
                   }
                 }}
               />
-              <button type="submit" disabled={!input.trim() || responding}>
+              <button
+                type="submit"
+                className="assistant-v3-send"
+                disabled={!input.trim() || responding}
+              >
                 Envoyer
+                <span aria-hidden="true">➤</span>
               </button>
             </form>
-
-            <p className="ritual-assistant-footnote">
-              Ce guide répond sur les prestations SAMASS. Pour une situation
-              particulière, Sam reste disponible directement.
-            </p>
           </section>
         </>
       ) : null}
