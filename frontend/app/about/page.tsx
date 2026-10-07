@@ -31,7 +31,7 @@ export default function AboutPage() {
       <section className="grid bg-[#0d1d18] text-[#f2eee7] lg:grid-cols-[1.08fr_.92fr]">
         <div className="relative min-h-[72vh]">
           <Image
-            src="/images/about1.jpg"
+            src="/images/samass-room-realistic-1.webp"
             alt="L’espace SAMASS"
             fill
             sizes="(max-width: 1024px) 100vw, 55vw"
@@ -99,7 +99,7 @@ export default function AboutPage() {
         </div>
         <div className="relative min-h-[70vh]">
           <Image
-            src="/images/about3.png"
+            src="/images/samass-room-realistic-2.webp"
             alt="Atmosphère de massage SAMASS"
             fill
             sizes="(max-width: 1024px) 100vw, 60vw"
