@@ -46,7 +46,7 @@ export const SAMASS_SERVICE_CATALOG: ServiceCatalogEntry[] = [
       "90": 120,
       "120": 150,
     },
-    image: "/images/tantric-massage.jpeg",
+    image: "/images/samass-room-realistic-2.webp",
   },
 ];
 
