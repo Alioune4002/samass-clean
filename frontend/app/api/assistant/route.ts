@@ -23,7 +23,7 @@ function cleanTurns(value: unknown): ChatTurn[] {
   if (!Array.isArray(value)) return [];
 
   return value
-    .slice(-14)
+    .slice(-24)
     .map((item) => {
       if (!item || typeof item !== "object") return null;
       const role =
@@ -135,17 +135,22 @@ CONNAISSANCES CERTAINES SUR SAMASS
 PRESTATIONS ET TARIFS ACTUELS
 ${JSON.stringify(serviceContext)}
 
-STYLE DE RÉPONSE
+STYLE DE CONVERSATION
 - Réponds en français sauf si l'utilisateur parle clairement une autre langue.
-- Réponds directement à la question, sans réciter toute la brochure.
-- En général 2 à 6 phrases. Tu peux être plus détaillé si la question le demande.
-- Garde le contexte de toute la conversation fournie.
-- Tu peux gérer les questions imprévues et les formulations familières.
-- Si l'utilisateur hésite entre plusieurs massages, pose une seule question utile si nécessaire puis recommande.
-- Ne répète pas mot pour mot une réponse précédente.
-- Ne pousse pas systématiquement à réserver.
-- Les suggestions doivent être réellement liées à ce que l'utilisateur vient de demander. Si aucune suite naturelle n'est utile, renvoie [].
-- Maximum 3 suggestions, courtes, formulées comme de vraies questions que l'utilisateur pourrait vouloir poser ensuite.
+- Tu n'es PAS une FAQ et tu n'utilises PAS de réponse pré-écrite. Compose chaque réponse spécifiquement à partir du message actuel et de l'historique.
+- Réponds d'abord exactement à ce qui est demandé. Ne récite jamais toute la brochure si une phrase suffit.
+- En général 2 à 6 phrases. Tu peux être plus détaillé si la question le demande vraiment.
+- Garde le contexte des échanges précédents : pronoms, durée évoquée, massage évoqué, hésitations et préférences.
+- Comprends les formulations familières, fautes, messages très courts, questions imprévues et sous-entendus raisonnables.
+- Si le message est ambigu et qu'une précision change réellement la réponse, pose UNE question courte au lieu d'inventer.
+- Si l'utilisateur hésite entre plusieurs massages, raisonne sur son besoin et recommande clairement, en expliquant pourquoi en une ou deux phrases.
+- Si l'utilisateur exprime une inquiétude, réponds d'abord à l'inquiétude avant de parler de réservation.
+- Ne répète pas une réponse précédente sauf si l'utilisateur le demande.
+- Ne pousse jamais systématiquement à réserver.
+- N'utilise pas des tournures de chatbot telles que "selon notre base de connaissances", "je suis programmé pour" ou "je ne peux répondre qu'à".
+- Pour une question hors sujet, reste humain : explique brièvement que tu es le guide SAMASS et ramène doucement vers ce que tu peux aider à faire.
+- Les suggestions sont facultatives. Elles doivent correspondre à une suite réellement probable de CET échange. Si elles n'apportent rien, renvoie [].
+- Maximum 3 suggestions, courtes, sans dupliquer ce que tu viens déjà de dire.
 - Tu peux proposer UNE action uniquement lorsqu'elle est naturellement utile :
   /services = découvrir/comparer les massages
   /reservation = faire une demande de rendez-vous
@@ -161,8 +166,8 @@ Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous ce
 `;
 
     const modelCandidates = [
-      "inclusionai/ling-3.0-flash-fin",
-      "poolside/laguna-s-2.1-free",
+      "openai/gpt-5.4-mini",
+      "openai/gpt-5-mini",
       "inclusionai/ling-3.1-flash-free",
     ];
 
@@ -179,7 +184,7 @@ Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous ce
             content: message.content,
           })),
           maxOutputTokens: 700,
-          reasoning: "none",
+          reasoning: model.startsWith("openai/") ? "low" : "none",
           maxRetries: 1,
         });
         generatedText = result.text;
