@@ -169,6 +169,7 @@ Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous ce
             content: message.content,
           })),
           maxOutputTokens: 700,
+          reasoning: "none",
           maxRetries: 1,
         });
         generatedText = result.text;

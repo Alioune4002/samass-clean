@@ -27,7 +27,8 @@ export async function GET() {
         system:
           "Tu testes le moteur du Guide SAMASS. Réponds uniquement par une phrase française courte et factuelle.",
         prompt: `Le tarif 90 minutes du massage tantrique fourni par le catalogue est ${expectedPrice} €. Confirme ce tarif en une phrase.`,
-        maxOutputTokens: 80,
+        maxOutputTokens: 180,
+        reasoning: "none",
         maxRetries: 1,
       });
 
