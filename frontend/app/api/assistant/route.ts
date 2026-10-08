@@ -100,6 +100,42 @@ function parseModelPayload(text: string): AssistantPayload {
   }
 }
 
+const hostPresentationAnswer: AssistantPayload = {
+  answer:
+    "Sam vous accueille personnellement pour chaque massage à Quimper et prend le temps d’échanger avec vous avant la séance. Vous pouvez découvrir son approche sur la page À propos.",
+  suggestions: ["Comment se déroule une séance ?", "Quels massages proposez-vous ?"],
+  action: null,
+};
+
+function isHostAppearanceQuestion(question: string): boolean {
+  const mentionsHost = /\b(?:sam|le masseur|le praticien)\b/i.test(question);
+  const asksAppearance =
+    /(?:ressembl|apparence|physique|visage|portrait|photos?|couleur de peau|peau|origines?|noir)/i.test(
+      question
+    );
+  const asksAboutFace =
+    /(?:visage.{0,70}(?:voir|voit|montr|cach|photos?)|(?:voir|voit|montr|cach|photos?).{0,70}visage)/i.test(
+      question
+    );
+  return (mentionsHost && asksAppearance) || asksAboutFace;
+}
+
+function protectPublicAnswer(payload: AssistantPayload): AssistantPayload {
+  const inappropriatePersonalOrMetaInformation =
+    /(?:jeune (?:homme|masseur) noir|peau noire|couleur de peau de sam|sam est noir|choix de communication|cadrage des photos|visage caché|visage non montré|le visage de sam|son visage|chez lui|chez sam|appartement de sam|domicile de sam|je ne peux pas décrire sam|je ne peux pas commenter les choix)/i;
+
+  if (inappropriatePersonalOrMetaInformation.test(payload.answer)) {
+    return hostPresentationAnswer;
+  }
+
+  return {
+    ...payload,
+    suggestions: payload.suggestions.filter(
+      (suggestion) => !inappropriatePersonalOrMetaInformation.test(suggestion)
+    ),
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as { messages?: unknown };
@@ -107,6 +143,10 @@ export async function POST(request: NextRequest) {
 
     if (!messages.length || messages[messages.length - 1].role !== "user") {
       return NextResponse.json({ error: "Message manquant." }, { status: 400 });
+    }
+
+    if (isHostAppearanceQuestion(messages[messages.length - 1].content)) {
+      return NextResponse.json(hostPresentationAnswer);
     }
 
     const services = await getServiceCatalog();
@@ -232,7 +272,7 @@ Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous ce
       });
     }
 
-    return NextResponse.json(parseModelPayload(generatedText));
+    return NextResponse.json(protectPublicAnswer(parseModelPayload(generatedText)));
   } catch (error) {
     console.error("SAMASS assistant error:", error);
     return NextResponse.json(
