@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata = {
   title: "À propos — Sam & l’approche SAMASS",
   description:
-    "Découvrez qui vous accueille chez SAMASS à Quimper et l’approche du massage : un accueil personnel, simple et sur-mesure.",
+    "Découvrez l’approche SAMASS à Quimper : un accueil attentionné, des massages sur mesure et un espace privé dédié à la détente.",
 };
 
 export default function AboutPage() {
@@ -23,9 +23,9 @@ export default function AboutPage() {
           </h1>
 
           <p className="max-w-md pb-4 text-lg leading-8 text-black/58">
-            SAMASS n’est ni une chaîne, ni une agence, ni un grand salon.
-            Vous êtes accueilli directement par Sam, à Quimper, dans un espace
-            aménagé chez lui pour les séances.
+            À Quimper, SAMASS vous accueille dans un espace privé, chaleureux
+            et apaisant, pensé pour vous offrir une véritable parenthèse de
+            détente. Chaque rendez-vous est un moment qui vous est consacré.
           </p>
         </div>
       </section>
@@ -52,24 +52,24 @@ export default function AboutPage() {
 
           <div className="mt-10 max-w-xl space-y-5 text-[17px] leading-8 text-white/62">
             <p>
-              Sam est un jeune masseur noir, formé à l’Hypoténuse, École
-              française du massage. C’est lui qui vous accueille, échange avec
-              vous avant la séance et réalise le massage.
+              Chez SAMASS, vous êtes accueilli par Sam, votre praticien,
+              formé à l’Hypoténuse, École française du massage. Avant chaque
+              séance, un temps d’échange permet de comprendre vos attentes
+              et de choisir le rythme qui vous convient.
             </p>
             <p>
-              L’idée n’est pas de reproduire l’ambiance d’un institut. Le lieu
-              reste volontairement simple, calme et intime : un cocon préparé
-              pour ralentir, se poser et recevoir une séance adaptée à son
-              besoin du jour.
+              Une présence attentive, des gestes adaptés et le plaisir de
+              prendre le temps. Ici, tout invite à ralentir, à relâcher les
+              tensions et à profiter pleinement de votre séance.
             </p>
           </div>
 
           <div className="mt-10 grid max-w-xl border-t border-white/15 text-[10px] font-bold uppercase tracking-[.13em] text-white/55 sm:grid-cols-3">
             <span className="border-b border-white/15 py-4 sm:border-r sm:px-4 sm:first:pl-0">
-              Accueil personnel
+              Accueil personnalisé
             </span>
             <span className="border-b border-white/15 py-4 sm:border-r sm:px-4">
-              Formé à l’Hypoténuse
+              Praticien formé
             </span>
             <span className="border-b border-white/15 py-4 sm:px-4">
               À Quimper
@@ -119,15 +119,15 @@ export default function AboutPage() {
         <div className="flex flex-col justify-center px-[6vw] py-[12vh]">
           <p className="samass-kicker text-black/40">LE LIEU</p>
           <blockquote className="mt-8 font-[Georgia] text-[clamp(48px,6vw,90px)] font-normal leading-[.93] tracking-[-.055em]">
-            Un cocon,
+            Un lieu pour
             <br />
-            <span className="italic text-[#0f5a43]">pas un cabinet.</span>
+            <span className="italic text-[#0f5a43]">souffler.</span>
           </blockquote>
 
           <p className="mt-9 max-w-md text-[16px] leading-8 text-black/58">
-            Les séances ont lieu dans un espace privé aménagé chez Sam. La
-            lumière est douce, l’ambiance volontairement calme et la table est
-            préparée avec du linge sombre et confortable.
+            Un espace privé dédié au massage et au bien-être, à Quimper.
+            Lumière douce, atmosphère feutrée et linge confortable : chaque
+            détail est pensé pour accompagner votre détente.
           </p>
 
           <Link
