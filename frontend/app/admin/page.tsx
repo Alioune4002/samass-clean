@@ -1,12 +1,9 @@
-"use client";
-
-import { useEffect } from "react";
 import { redirect } from "next/navigation";
 
-export default function AdminAlias() {
-  useEffect(() => {
-    redirect("/admin-samass-98342");
-  }, []);
+export const metadata = {
+  robots: { index: false, follow: false },
+};
 
-  return null;
+export default function AdminAlias() {
+  redirect("/admin-samass-98342/login");
 }

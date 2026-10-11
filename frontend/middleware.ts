@@ -9,7 +9,9 @@ export function middleware(req: NextRequest) {
 
 
   if (pathname.startsWith(`${PROTECTED_PATH}/login`)) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return response;
   }
 
   
@@ -20,7 +22,9 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  return response;
 }
 
 

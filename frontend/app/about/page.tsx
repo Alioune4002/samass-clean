@@ -5,6 +5,7 @@ export const metadata = {
   title: "À propos — Sam & l’approche SAMASS",
   description:
     "Découvrez l’approche SAMASS à Quimper : un accueil attentionné, des massages sur mesure et un espace privé dédié à la détente.",
+  alternates: { canonical: "https://samassbysam.com/about" },
 };
 
 export default function AboutPage() {
