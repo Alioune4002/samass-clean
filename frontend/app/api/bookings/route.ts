@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createBooking } from "@/lib/server/samassStore";
+import { validateProposedSlot } from "@/lib/bookingSlots";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,22 @@ export async function POST(request: Request) {
     ];
     if (required.some((value) => !value)) {
       return NextResponse.json({ error: "Demande incomplète." }, { status: 400 });
+    }
+
+    // Validation serveur obligatoire : même un appel direct à l'API ne peut
+    // proposer un massage avec moins de 3 h de préparation, ou après 20 h.
+    const proposedSlot = validateProposedSlot(
+      String(body.requested_datetime),
+      Number(body.duration_minutes)
+    );
+    if (!proposedSlot.valid) {
+      return NextResponse.json(
+        {
+          error: proposedSlot.error,
+          next_proposable: proposedSlot.nextProposable,
+        },
+        { status: 422 }
+      );
     }
 
     const booking = await createBooking({

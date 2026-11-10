@@ -1,6 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  listProposableTimes,
+  nextProposableSlot,
+  parisHour,
+  parisToday,
+  parisTomorrow,
+  prettyDate,
+  prettyHour,
+  validateProposedSlot,
+} from "@/lib/bookingSlots";
 import { createBooking, getServices } from "@/lib/api";
 import { Service } from "@/lib/types";
 
@@ -12,14 +22,7 @@ type Props = {
 
 function formatRequestedSlot(date: string, time: string) {
   if (!date || !time) return "";
-  const value = new Date(`${date}T${time}:00`);
-  return value.toLocaleString("fr-FR", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return `${prettyDate(date)} à ${prettyHour(time)}`;
 }
 
 export default function ReservationModal({
@@ -41,8 +44,20 @@ export default function ReservationModal({
   const [loadingServices, setLoadingServices] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [clock, setClock] = useState(() => new Date());
 
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayParis = parisToday(clock);
+  const tomorrowParis = parisTomorrow(clock);
+  const firstProposable = duration ? nextProposableSlot(duration, clock) : null;
+  const timesForDate = date && duration ? listProposableTimes(date, duration, clock) : [];
+  const noMoreToday = Boolean(firstProposable && firstProposable.date > todayParis);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setClock(new Date());
+    const interval = window.setInterval(() => setClock(new Date()), 30_000);
+    return () => window.clearInterval(interval);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -78,6 +93,20 @@ export default function ReservationModal({
     };
   }, [isOpen, initialServiceId]);
 
+  // Les heures proposées évoluent même si le formulaire reste ouvert.
+  useEffect(() => {
+    if (!isOpen || step !== 3 || !duration) return;
+    const next = nextProposableSlot(duration, clock);
+    if (!next) return;
+
+    if (!date || date < next.date) {
+      setDate(next.date);
+      setTime("");
+    } else if (time && !listProposableTimes(date, duration, clock).includes(time)) {
+      setTime("");
+    }
+  }, [isOpen, step, duration, clock, date, time]);
+
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (event: KeyboardEvent) => {
@@ -91,9 +120,39 @@ export default function ReservationModal({
 
   const requestedLabel = formatRequestedSlot(date, time);
 
+  function goToContactDetails() {
+    const validation = validateProposedSlot(
+      `${date}T${time}:00`,
+      duration ?? 0,
+      new Date()
+    );
+    if (!validation.valid) {
+      setError(validation.error || "Choisissez un autre horaire.");
+      setTime("");
+      if (validation.nextProposable) setDate(validation.nextProposable.date);
+      return;
+    }
+    setError("");
+    setStep(4);
+  }
+
   async function submit() {
     if (!selectedService || !duration || !date || !time || !name || !email) {
       setError("Merci de renseigner les informations obligatoires.");
+      return;
+    }
+
+    // Second contrôle avant envoi : le visiteur peut laisser l'étape ouverte.
+    const validation = validateProposedSlot(
+      `${date}T${time}:00`,
+      duration,
+      new Date()
+    );
+    if (!validation.valid) {
+      setError(validation.error || "Choisissez un nouvel horaire.");
+      if (validation.nextProposable) setDate(validation.nextProposable.date);
+      setTime("");
+      setStep(3);
       return;
     }
 
@@ -255,37 +314,106 @@ export default function ReservationModal({
               <p className="mb-2 text-sm font-medium text-[#657069]">3 · Quel horaire vous conviendrait ?</p>
               <h3 className="text-2xl font-semibold text-[#17352d]">Proposez votre créneau</h3>
               <p className="mt-2 text-sm leading-6 text-[#657069]">
-                Il s’agit d’une demande, pas d’une confirmation automatique. Sam vous répond ensuite.
+                Pour permettre à Sam de préparer votre massage avec attention,
+                choisissez un horaire au moins 3 heures à l’avance.
+                Chaque demande reste soumise à sa confirmation.
               </p>
+
+              {noMoreToday && firstProposable && (
+                <div className="mt-5 rounded-[22px] border border-[#d7c9ad] bg-[#f1e9d9] px-4 py-4 text-sm leading-6 text-[#604d35]" role="status">
+                  <strong className="block text-[#17352d]">
+                    {parisHour(clock) >= 20
+                      ? "Sam a terminé ses séances pour aujourd’hui."
+                      : parisHour(clock) >= 16
+                        ? "Sam approche de la fin de sa journée."
+                        : "Les propositions pour aujourd’hui sont terminées."}
+                  </strong>
+                  Pour lui laisser le temps de préparer au mieux votre rendez-vous,
+                  vous pouvez proposer un horaire dès <strong>{firstProposable.date === tomorrowParis ? "demain" : prettyDate(firstProposable.date)} à {prettyHour(firstProposable.time)}</strong>.
+                  Ce créneau n’est pas encore réservé : Sam vous répondra pour le confirmer.
+                </div>
+              )}
+
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <label className="text-sm text-[#4f5a54]">
                   Date souhaitée
                   <input
                     type="date"
-                    min={today}
+                    min={firstProposable?.date || todayParis}
                     value={date}
-                    onChange={(event) => setDate(event.target.value)}
+                    onChange={(event) => {
+                      setDate(event.target.value);
+                      setTime("");
+                      setError("");
+                    }}
                     className="mt-2 w-full rounded-2xl border border-[#cfc5b4] bg-white px-4 py-3 text-[#17352d] outline-none focus:border-[#1f5a49]"
                   />
                 </label>
                 <label className="text-sm text-[#4f5a54]">
                   Heure souhaitée
-                  <input
-                    type="time"
+                  <select
                     value={time}
-                    onChange={(event) => setTime(event.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-[#cfc5b4] bg-white px-4 py-3 text-[#17352d] outline-none focus:border-[#1f5a49]"
-                  />
+                    disabled={!date || timesForDate.length === 0}
+                    onChange={(event) => {
+                      setTime(event.target.value);
+                      setError("");
+                    }}
+                    className="mt-2 w-full rounded-2xl border border-[#cfc5b4] bg-white px-4 py-3 text-[#17352d] outline-none focus:border-[#1f5a49] disabled:opacity-50"
+                  >
+                    <option value="">Choisir une heure</option>
+                    {timesForDate.map((slot) => (
+                      <option key={slot} value={slot}>{prettyHour(slot)}</option>
+                    ))}
+                  </select>
                 </label>
               </div>
-              {requestedLabel && (
+
+              {date && timesForDate.length === 0 && (
+                <p className="mt-4 text-sm leading-6 text-[#8a6a3b]" role="status">
+                  Aucun horaire à proposer ce jour-là avec le délai de préparation
+                  et une fin de massage à 20 h. Choisissez une autre date.
+                </p>
+              )}
+
+              {timesForDate.length > 0 && (
+                <div className="mt-5">
+                  <p className="text-sm font-medium text-[#4f5a54]">Quelques horaires possibles à proposer :</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {timesForDate.slice(0, 5).map((slot) => (
+                      <button
+                        type="button"
+                        key={slot}
+                        onClick={() => {
+                          setTime(slot);
+                          setError("");
+                        }}
+                        className={`rounded-full border px-4 py-2 text-sm transition ${
+                          time === slot
+                            ? "border-[#1f5a49] bg-[#1f5a49] text-white"
+                            : "border-[#cfc5b4] bg-white text-[#17352d] hover:border-[#1f5a49]"
+                        }`}
+                      >
+                        {prettyHour(slot)}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-[#657069]">
+                    Horaires de proposition : à partir de 10 h, avec une fin de séance
+                    avant 20 h. Le dernier début possible dépend de la durée du massage.
+                    Ces horaires ne sont pas des disponibilités confirmées.
+                    Les heures sont celles de Quimper.
+                  </p>
+                </div>
+              )}
+
+              {requestedLabel && timesForDate.includes(time) && (
                 <div className="mt-5 rounded-2xl bg-[#eaf1ec] px-4 py-3 text-sm text-[#285044]">
                   Votre préférence : <strong>{requestedLabel}</strong>
                 </div>
               )}
               <div className="mt-6 flex gap-3">
                 <button type="button" onClick={() => setStep(2)} className="flex-1 rounded-full border border-[#cfc5b4] px-5 py-3 text-[#4f5a54]">Retour</button>
-                <button type="button" disabled={!date || !time} onClick={() => setStep(4)} className="flex-1 rounded-full bg-[#17352d] px-5 py-3 font-semibold text-white disabled:opacity-40">Continuer</button>
+                <button type="button" disabled={!date || !time || !timesForDate.includes(time)} onClick={goToContactDetails} className="flex-1 rounded-full bg-[#17352d] px-5 py-3 font-semibold text-white disabled:opacity-40">Continuer</button>
               </div>
             </div>
           )}
