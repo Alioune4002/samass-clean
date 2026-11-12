@@ -104,8 +104,8 @@ export default function ReviewsClient() {
             <>
               <h2 className="font-serif text-3xl">Laisser un avis</h2>
               <p className="mt-3 text-sm leading-6 text-[#758075]">
-                Ce formulaire recueille votre témoignage directement chez SAMASS.
-                Ce n'est pas un avis certifié par une plateforme indépendante.
+                Quelques mots suffisent pour partager votre expérience.
+                Votre témoignage ne sera publié que si vous le souhaitez.
               </p>
               <form onSubmit={submit} className="mt-7 space-y-5">
                 <div>
