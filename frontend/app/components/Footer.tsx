@@ -19,6 +19,7 @@ export default function Footer() {
             <Link href="/services">Massages</Link>
             <Link href="/about">L’approche</Link>
             <Link href="/reservation">Rendez-vous</Link>
+            <Link href="/avis">Avis clients</Link>
             <Link href="/contact">Contact</Link>
           </div>
 

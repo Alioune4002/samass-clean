@@ -11,6 +11,7 @@ const links = [
   { href: "/admin-samass-98342/availability", label: "Planning" },
   { href: "/admin-samass-98342/services", label: "Services" },
   { href: "/admin-samass-98342/messages", label: "Messages" },
+  { href: "/admin-samass-98342/reviews", label: "Avis" },
 ];
 
 export default function Sidebar() {
