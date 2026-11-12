@@ -19,7 +19,7 @@ type AssistantPayload = {
   suggestions: string[];
   action?: {
     label: string;
-    href: "/services" | "/reservation" | "/contact";
+    href: "/services" | "/reservation" | "/contact" | "/avis";
   } | null;
 };
 
@@ -75,7 +75,7 @@ function parseModelPayload(text: string): AssistantPayload {
           .slice(0, 3)
       : [];
 
-    const allowedHrefs = new Set(["/services", "/reservation", "/contact"]);
+    const allowedHrefs = new Set(["/services", "/reservation", "/contact", "/avis"]);
     const action =
       parsed.action &&
       typeof parsed.action === "object" &&
@@ -84,7 +84,7 @@ function parseModelPayload(text: string): AssistantPayload {
       allowedHrefs.has(parsed.action.href)
         ? {
             label: parsed.action.label.trim().slice(0, 60),
-            href: parsed.action.href as "/services" | "/reservation" | "/contact",
+            href: parsed.action.href as "/services" | "/reservation" | "/contact" | "/avis",
           }
         : null;
 
@@ -149,6 +149,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(hostPresentationAnswer);
     }
 
+    const question = messages[messages.length - 1].content;
+    const reviewIntent =
+      /(?:laisser|déposer|rédiger|écrire|publier|donner|mettre|poster|partager).{0,45}(?:avis|témoignage)/i.test(question) ||
+      /(?:avis|témoignage).{0,35}(?:sur le site|sur samass|de ma séance|sur mon massage)/i.test(question);
+    if (reviewIntent) {
+      return NextResponse.json({
+        answer: "Vous pouvez partager votre expérience directement sur la page Avis clients. Votre témoignage ne sera affiché que si vous choisissez de le rendre public.",
+        suggestions: [],
+        action: { label: "Laisser un avis", href: "/avis" },
+      });
+    }
+
     const services = await getServiceCatalog();
     setAssistantServiceCatalog(services);
 
@@ -203,6 +215,7 @@ STYLE DE CONVERSATION
   /services = découvrir/comparer les massages
   /reservation = faire une demande de rendez-vous
   /contact = parler directement à Sam
+  /avis = laisser un témoignage après une séance
 
 FORMAT OBLIGATOIRE
 Réponds uniquement avec un objet JSON valide, sans markdown, exactement sous cette forme :

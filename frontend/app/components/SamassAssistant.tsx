@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 type AssistantAction = {
   label: string;
-  href: "/services" | "/reservation" | "/contact";
+  href: "/services" | "/reservation" | "/contact" | "/avis";
 };
 
 type Message = {
