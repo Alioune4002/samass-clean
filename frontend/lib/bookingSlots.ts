@@ -40,6 +40,28 @@ export function parisHour(now: Date = new Date()) {
   return parisParts(now).hour;
 }
 
+/**
+ * Compare une demande de réservation (heure locale à Quimper) avec la fin
+ * de séance, sans dépendre du fuseau de l'ordinateur de l'administrateur.
+ */
+export function hasSessionEndedInParis(
+  requestedDateTime: string,
+  durationMinutes: number,
+  now: Date = new Date()
+): boolean {
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2})?$/.exec(requestedDateTime);
+  if (!match || !Number.isInteger(durationMinutes) ||
+      durationMinutes <= 0 || durationMinutes > 240) return false;
+  const start = new Date(`${match[1]}T${match[2]}:00.000Z`);
+  if (!Number.isFinite(start.getTime()) ||
+      start.toISOString().slice(0, 16) !== `${match[1]}T${match[2]}`) {
+    return false;
+  }
+  const end = new Date(start.getTime() + durationMinutes * 60_000);
+  const localNow = parisParts(now);
+  return end.toISOString().slice(0, 16) <= `${localNow.date}T${localNow.time}`;
+}
+
 function calendarDatePlusDays(date: string, days: number) {
   const result = new Date(`${date}T12:00:00.000Z`);
   result.setUTCDate(result.getUTCDate() + days);

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { ImapFlow } from "imapflow";
 import nodemailer from "nodemailer";
 import { getBooking } from "@/lib/server/samassStore";
+import { hasSessionEndedInParis } from "@/lib/bookingSlots";
 
 const FOLDER = "SAMASS-Reviews";
 
@@ -105,6 +106,55 @@ export async function getAllReviews() {
   });
 }
 
+/**
+ * Alerte interne : chaque avis soumis (même sans accord de publication) doit
+ * être signalé à Sam, mais son commentaire reste privé dans l'administration.
+ * Cette notification n'envoie aucun email au client.
+ */
+async function notifyAdminOfNewReview(review: ReviewRecord) {
+  const { user, password, from } = config();
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: Number(process.env.EMAIL_PORT || 587),
+    secure: Number(process.env.EMAIL_PORT || 587) === 465,
+    auth: { user, pass: password },
+  });
+  const destination = "contact@samassbysam.com";
+  const adminUrl = "https://samassbysam.com/admin-samass-98342/reviews";
+  const firstName = review.name.split(" ")[0];
+  const rating = review.rating || 0;
+
+  await transporter.sendMail({
+    from,
+    to: destination,
+    replyTo: destination,
+    subject: "SAMASS · Un nouvel avis attend votre validation",
+    text: [
+      "Bonjour Sam,",
+      "",
+      "Vous avez reçu un nouvel avis sur SAMASS.",
+      `Client : ${firstName}`,
+      `Note : ${rating}/5`,
+      `Origine : ${review.invitation_id ? "Invitation après une séance" : "Formulaire du site"}`,
+      "",
+      "L'avis est privé et en attente de votre décision.",
+      "Ouvrez l'administration pour le lire, le publier ou le refuser :",
+      adminUrl,
+      "",
+      "SAMASS · Quimper",
+    ].join("\n"),
+    html: `<div style="font-family:Arial,sans-serif;max-width:520px;padding:28px;background:#f7f4ec;color:#173a2e;border-radius:18px;">
+      <div style="font-size:11px;letter-spacing:2px;color:#897451">SAMASS · QUIMPER</div>
+      <h2 style="font-family:Georgia,serif;font-size:26px;font-weight:normal;margin:18px 0">Un nouvel avis est arrivé.</h2>
+      <p>Une personne a partagé son expérience chez SAMASS.</p>
+      <p><strong>Note : ${rating}/5</strong></p>
+      <p>Cet avis reste privé jusqu'à votre validation. Retrouvez son texte et son origine dans l'administration.</p>
+      <p><a href="${adminUrl}" style="display:inline-block;background:#1f5a49;color:#fff;padding:12px 20px;border-radius:24px;text-decoration:none">Examiner l'avis</a></p>
+      <p style="font-size:12px;color:#66766b">Aucune publication automatique.</p>
+    </div>`,
+  });
+}
+
 export async function createPublicReview(input: Record<string, unknown>) {
   const name = cleanName(input.name);
   const email = cleanEmail(input.email);
@@ -158,6 +208,7 @@ export async function createPublicReview(input: Record<string, unknown>) {
     visit_date: visitDate,
     public_name: publicName, consent: input.consent, status: "pending",
     invitation_id: invitation?.id,
+    booking_id: invitation?.booking_id,
     created_at: now, updated_at: now,
   };
   await append(item);
@@ -165,6 +216,12 @@ export async function createPublicReview(input: Record<string, unknown>) {
     // Lien à usage unique, avec historique de réception dans l'administration.
     await append({ ...invitation, status: "used", updated_at: new Date().toISOString() })
       .catch((error) => console.error("SAMASS review invitation update failed", error));
+  }
+  // Le retour du client reste enregistré même si la notification SMTP échoue.
+  try {
+    await notifyAdminOfNewReview(item);
+  } catch (error) {
+    console.error("SAMASS review notification email failed", { review_id: item.id, error });
   }
   return { received: true };
 }
@@ -249,22 +306,7 @@ export async function sendReviewInvitation(input: Record<string, unknown>) {
       throw new Error("Cette réservation doit être confirmée.");
     }
 
-    // Le créneau est exprimé en heure locale de Quimper ; comparer sans
-    // transformer les horaires d'été en fuseau UTC fixe.
-    const request = booking.requested_datetime;
-    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(request)) {
-      throw new Error("L'heure de cette réservation est invalide.");
-    }
-    const sessionEnd = new Date(request.slice(0, 16) + ":00.000Z");
-    sessionEnd.setUTCMinutes(sessionEnd.getUTCMinutes() + booking.duration_minutes);
-    const paris = new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-    }).formatToParts(new Date());
-    const val = (key: string) => paris.find((part) => part.type === key)?.value || "";
-    const nowParis = `${val("year")}-${val("month")}-${val("day")}T${val("hour")}:${val("minute")}`;
-    if (Number.isNaN(sessionEnd.getTime()) ||
-        sessionEnd.toISOString().slice(0, 16) > nowParis) {
+    if (!hasSessionEndedInParis(booking.requested_datetime, booking.duration_minutes)) {
       throw new Error("Attendez la fin de la séance pour demander un avis.");
     }
 
@@ -277,8 +319,13 @@ export async function sendReviewInvitation(input: Record<string, unknown>) {
   }
 
   const all = await getAllReviews();
-  if (all.some((item) => item.kind === "invitation" && item.email === email &&
-    item.status === "sent" && Date.parse(item.created_at) > Date.now() - 7 * 86400_000)) {
+  if (bookingId && all.some((item) => item.kind === "invitation" &&
+    item.booking_id === bookingId && ["sent", "used"].includes(item.status))) {
+    throw new Error("Une invitation a déjà été envoyée pour cette réservation.");
+  }
+  if (!bookingId && all.some((item) => item.kind === "invitation" && item.email === email &&
+    ["sent", "used"].includes(item.status) &&
+    Date.parse(item.created_at) > Date.now() - 7 * 86400_000)) {
     throw new Error("Une invitation a déjà été envoyée à cette adresse récemment.");
   }
 

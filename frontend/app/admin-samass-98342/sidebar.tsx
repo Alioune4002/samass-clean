@@ -17,20 +17,25 @@ const links = [
 export default function Sidebar() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
-  const [badges, setBadges] = useState<{ bookings: number; messages: number }>({
+  const [badges, setBadges] = useState<{ bookings: number; messages: number; reviews: number }>({
     bookings: 0,
     messages: 0,
+    reviews: 0,
   });
 
   const refreshBadges = async () => {
     try {
-      const [bookings, messages] = await Promise.all([
+      const [bookings, messages, reviews] = await Promise.all([
         adminGetBookings(),
         adminGetMessages(),
+        fetch("/api/admin/reviews?summary=1", { cache: "no-store" })
+          .then((response) => response.ok ? response.json() as Promise<{ pending: number }> : { pending: 0 })
+          .catch(() => ({ pending: 0 })),
       ]);
       setBadges({
         bookings: bookings.filter((b) => b.status === "pending").length,
         messages: messages.filter((m) => !m.is_read).length,
+        reviews: reviews.pending || 0,
       });
     } catch (e) {
       console.error("Badges admin non chargés :", e);
@@ -38,7 +43,11 @@ export default function Sidebar() {
   };
 
   useEffect(() => {
-    refreshBadges();
+    void refreshBadges();
+    // Compteur rafraîchi tant que l'administration est ouverte,
+    // même sans navigation entre les pages.
+    const interval = window.setInterval(() => { void refreshBadges(); }, 120_000);
+    return () => window.clearInterval(interval);
   }, [path]);
 
   useEffect(() => {
@@ -110,6 +119,12 @@ export default function Sidebar() {
                   {link.label === "Messages" && badges.messages > 0 && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white">
                       {badges.messages}
+                    </span>
+                  )}
+                  {link.label === "Avis" && badges.reviews > 0 && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-600 text-white"
+                      aria-label={`${badges.reviews} avis à examiner`}>
+                      {badges.reviews}
                     </span>
                   )}
                 </span>

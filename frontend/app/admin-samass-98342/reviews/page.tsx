@@ -2,6 +2,17 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { hasSessionEndedInParis } from "@/lib/bookingSlots";
+
+type BookingSummary = {
+  id: string;
+  client_name: string;
+  client_email: string;
+  service_title: string;
+  requested_datetime: string;
+  duration_minutes: number;
+  status: "pending" | "confirmed" | "canceled";
+};
 
 type Review = {
   kind: "review" | "invitation";
@@ -13,6 +24,7 @@ type Review = {
   public_name?: string;
   consent?: boolean;
   invitation_id?: string;
+  booking_id?: string;
   visit_date?: string;
   status: "pending" | "published" | "hidden" | "rejected" | "sent" | "failed" | "used";
   created_at: string;
@@ -20,6 +32,10 @@ type Review = {
 
 export default function AdminReviewsPage() {
   const [rows, setRows] = useState<Review[]>([]);
+  const [bookings, setBookings] = useState<BookingSummary[]>([]);
+  const [bookingError, setBookingError] = useState("");
+  const [selectedBookingId, setSelectedBookingId] = useState("");
+  const [manualInvite, setManualInvite] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
@@ -33,14 +49,43 @@ export default function AdminReviewsPage() {
     if (!response.ok) throw new Error("Impossible de charger les avis.");
     const values = await response.json() as Review[];
     setRows(values);
+    window.dispatchEvent(new Event("admin-badges-refresh"));
   }, []);
 
   useEffect(() => {
-    reload().catch((err) => setError(err.message)).finally(() => setLoading(false));
+    let active = true;
+    Promise.allSettled([
+      reload(),
+      fetch("/api/admin/bookings", { cache: "no-store" })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Les réservations ne sont pas disponibles.");
+          return response.json() as Promise<BookingSummary[]>;
+        })
+        .then((items) => {
+          if (active) setBookings(Array.isArray(items) ? items : []);
+        }),
+    ]).then(([reviewsResult, bookingsResult]) => {
+      if (!active) return;
+      if (reviewsResult.status === "rejected") setError("Impossible de charger les avis.");
+      if (bookingsResult.status === "rejected") {
+        setBookingError("Impossible de récupérer les réservations. L'invitation manuelle reste disponible.");
+      }
+      setLoading(false);
+    });
+    return () => { active = false; };
   }, [reload]);
 
   async function invite(event: FormEvent) {
     event.preventDefault();
+    const booking = bookings.find((item) => item.id === selectedBookingId);
+    if (!manualInvite && !booking) {
+      setError("Sélectionnez une réservation avant d'envoyer une invitation.");
+      return;
+    }
+    const destination = manualInvite ? email : booking?.client_email || "";
+    if (!window.confirm(`Envoyer la demande d'avis à ${manualInvite ? name : booking?.client_name} (${destination}) ?`)) {
+      return;
+    }
     setSending(true);
     setError("");
     setMessage("");
@@ -48,13 +93,14 @@ export default function AdminReviewsPage() {
       const response = await fetch("/api/admin/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email }),
+        body: JSON.stringify(manualInvite ? { name, email } : { booking_id: selectedBookingId }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Envoi impossible.");
-      setMessage("Invitation envoyée à " + email + ". Le lien mène à la page /avis.");
+      setMessage("Invitation personnelle envoyée à " + destination + ". Le lien mène à la page Avis et expire sous 30 jours.");
       setName("");
       setEmail("");
+      setSelectedBookingId("");
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Envoi impossible.");
@@ -107,6 +153,14 @@ export default function AdminReviewsPage() {
     return row.status === filter;
   });
   const invitations = rows.filter((row) => row.kind === "invitation");
+  const alreadyInvited = new Set(invitations
+    .filter((item) => item.booking_id && ["sent", "used"].includes(item.status))
+    .map((item) => item.booking_id));
+  const eligibleBookings = bookings
+    .filter((item) => item.status === "confirmed" &&
+      hasSessionEndedInParis(item.requested_datetime, item.duration_minutes))
+    .sort((a, b) => b.requested_datetime.localeCompare(a.requested_datetime));
+  const selectedBooking = eligibleBookings.find((item) => item.id === selectedBookingId);
 
   return (
     <div className="max-w-5xl space-y-9 text-gray-100">
@@ -125,24 +179,86 @@ export default function AdminReviewsPage() {
       <section className="rounded-2xl border border-gray-800 bg-[#1b1b1b] p-5 md:p-7">
         <h2 className="text-xl font-semibold">Demander un avis après une séance</h2>
         <p className="mt-2 text-sm text-gray-400">
-          Saisis les coordonnées d'un client réellement accueilli chez SAMASS.
-          Un email sera envoyé immédiatement depuis la messagerie configurée.
+          Choisissez une réservation confirmée et terminée : le nom et l'email du client
+          sont récupérés automatiquement. Aucun envoi n'est fait sans votre clic.
         </p>
-        <form onSubmit={invite} className="mt-5 grid gap-3 sm:grid-cols-[1fr_1.3fr_auto]">
-          <input required minLength={2} maxLength={70} value={name} onChange={(e) => setName(e.target.value)}
-            placeholder="Prénom et nom du client" aria-label="Nom du client"
-            className="min-w-0 rounded-lg border border-gray-700 bg-[#101010] p-3 text-sm text-white"/>
-          <input required type="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)}
-            placeholder="email@exemple.fr" aria-label="Adresse du client"
-            className="min-w-0 rounded-lg border border-gray-700 bg-[#101010] p-3 text-sm text-white"/>
-          <button disabled={sending} type="submit" className="rounded-lg bg-emerald-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
-            {sending ? "Envoi…" : "Envoyer"}
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button type="button" onClick={() => { setManualInvite(false); setError(""); }}
+            className={`rounded-full px-4 py-2 text-sm ${!manualInvite
+              ? "bg-emerald-700 text-white" : "border border-gray-700 text-gray-300"}`}>
+            Depuis une réservation
+          </button>
+          <button type="button" onClick={() => { setManualInvite(true); setError(""); }}
+            className={`rounded-full px-4 py-2 text-sm ${manualInvite
+              ? "bg-emerald-700 text-white" : "border border-gray-700 text-gray-300"}`}>
+            Client venu par message
+          </button>
+        </div>
+
+        <form onSubmit={invite} className="mt-5 space-y-4">
+          {!manualInvite ? (
+            <>
+              <label className="block text-sm font-medium text-gray-200" htmlFor="review-booking-select">
+                Séance terminée
+              </label>
+              <select id="review-booking-select" required value={selectedBookingId}
+                onChange={(event) => setSelectedBookingId(event.target.value)}
+                className="w-full rounded-lg border border-gray-700 bg-[#101010] p-3 text-sm text-white">
+                <option value="">Choisir un client et une réservation</option>
+                {eligibleBookings.map((booking) => (
+                  <option key={booking.id} value={booking.id} disabled={alreadyInvited.has(booking.id)}>
+                    {booking.client_name} · {new Date(booking.requested_datetime.slice(0, 16) + ":00Z")
+                      .toLocaleDateString("fr-FR", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" })}
+                    {" · "}{booking.service_title}
+                    {alreadyInvited.has(booking.id) ? " · Invitation déjà envoyée" : ""}
+                  </option>
+                ))}
+              </select>
+              {bookingError && <p className="text-sm text-amber-300">{bookingError}</p>}
+              {eligibleBookings.length === 0 && !bookingError && (
+                <p className="text-sm text-gray-400">
+                  Aucune réservation confirmée et terminée pour le moment.
+                  Vous pouvez inviter un client venu par message avec l'autre onglet.
+                </p>
+              )}
+              {selectedBooking && (
+                <div className="rounded-xl bg-[#12271f] px-4 py-3 text-sm leading-6 text-emerald-100">
+                  <strong>{selectedBooking.client_name}</strong>
+                  <span className="block break-all">{selectedBooking.client_email}</span>
+                  <span className="text-xs text-emerald-300">
+                    Les coordonnées seront reprises depuis cette réservation.
+                  </span>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm text-gray-200">
+                Nom du client
+                <input required minLength={2} maxLength={70} value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Prénom et nom"
+                  className="mt-2 w-full rounded-lg border border-gray-700 bg-[#101010] p-3 text-white"/>
+              </label>
+              <label className="block text-sm text-gray-200">
+                Email du client
+                <input required type="email" maxLength={254} value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="email@exemple.fr"
+                  className="mt-2 w-full rounded-lg border border-gray-700 bg-[#101010] p-3 text-white"/>
+              </label>
+            </div>
+          )}
+          <button disabled={sending || (!manualInvite && !selectedBookingId)}
+            type="submit"
+            className="rounded-full bg-emerald-700 px-6 py-3 text-sm font-semibold text-white disabled:opacity-50">
+            {sending ? "Envoi en cours…" : "Envoyer la demande d'avis"}
           </button>
         </form>
-        <p className="mt-3 text-xs leading-5 text-gray-500">
-          Ne demande pas uniquement des avis positifs et n'offre aucun avantage en échange.
-          Le massage effectué n'est pas précisé dans l'email, par discrétion.
-          Chaque invitation comporte un lien personnel valable 30 jours, utilisable une seule fois.
+        <p className="mt-4 text-xs leading-5 text-gray-500">
+          Chaque invitation contient un lien personnel valable 30 jours, utilisable une seule fois.
+          Le client est libre de laisser une note de 1 à 5 et son avis reste privé avant modération.
         </p>
       </section>
 
@@ -184,6 +300,15 @@ export default function AdminReviewsPage() {
                   {review.consent && review.public_name ? " · Nom public : " + review.public_name : ""}
                   {" · Origine : "}{review.invitation_id ? "invitation personnalisée" : "formulaire du site"}
                   {review.visit_date ? ` · Séance du ${new Date(review.visit_date + "T12:00:00Z").toLocaleDateString("fr-FR")}` : ""}
+                  {review.booking_id && (
+                    <>
+                      {" · "}
+                      <Link href={`/admin-samass-98342/bookings/${encodeURIComponent(review.booking_id)}`}
+                        className="text-emerald-300 underline">
+                        Voir la réservation liée
+                      </Link>
+                    </>
+                  )}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {review.status !== "published" && review.consent && (
