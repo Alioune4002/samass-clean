@@ -20,6 +20,8 @@ export async function POST(request: Request) {
     const validation = [
       "Nom invalide.", "Adresse e-mail invalide.",
       "Choisissez une note entre 1 et 5.",
+      "Indiquez la date de votre séance.",
+      "La date de séance n'est pas valide.",
       "Votre avis doit contenir entre 20 et 1 400 caractères.",
       "Précisez si vous acceptez la publication de votre avis.",
       "Un avis a déjà été soumis avec cette adresse récemment.",

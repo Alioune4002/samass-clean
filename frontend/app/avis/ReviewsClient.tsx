@@ -1,8 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { parisToday } from "@/lib/bookingSlots";
 
-type DisplayReview = { id: string; name: string; rating: number; comment: string; created_at: string };
+type DisplayReview = {
+  id: string; name: string; rating: number; comment: string; created_at: string;
+  visit_date?: string | null; published_at?: string;
+};
 
 export default function ReviewsClient() {
   const [reviews, setReviews] = useState<DisplayReview[]>([]);
@@ -11,6 +15,7 @@ export default function ReviewsClient() {
   const [publicName, setPublicName] = useState("");
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
+  const [visitDate, setVisitDate] = useState("");
   const [consent, setConsent] = useState(false);
   const [website, setWebsite] = useState("");
   const [invitation, setInvitation] = useState("");
@@ -43,7 +48,7 @@ export default function ReviewsClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name, email, public_name: publicName || name.split(" ")[0],
-          rating, comment, consent, website, invitation,
+          rating, comment, visit_date: visitDate, consent, website, invitation,
         }),
       });
       const result = await response.json();
@@ -75,6 +80,25 @@ export default function ReviewsClient() {
           <p className="mt-3 text-sm leading-6 text-[#77837a]">
             Seuls les témoignages dont les auteurs ont accepté la publication apparaissent ici.
           </p>
+          <details className="mt-4 rounded-xl border border-[#ded9cb] bg-white/45 px-4 py-3 text-xs leading-6 text-[#627064]">
+            <summary className="cursor-pointer font-medium text-[#315b4c]">
+              Comment sont recueillis et publiés les avis ?
+            </summary>
+            <div className="mt-3 space-y-2">
+              <p>Les avis sont déposés sur ce site ou depuis un lien envoyé après une séance.
+                Ils ne sont pas publiés automatiquement et ne donnent lieu à aucune contrepartie.</p>
+              <p>Sam examine les retours avant leur affichage, sans distinction de note.
+                Les contenus injurieux, publicitaires, hors sujet, portant atteinte à la vie privée
+                ou sans expérience identifiable peuvent être refusés, avec un motif communiqué à leur auteur.</p>
+              <p>Les avis publiés sont classés du plus récent au plus ancien, avec leur date de publication
+                et la date de la séance déclarée. La publication peut intervenir dans un délai maximum
+                de 90 jours. Un avis reste affiché au maximum 24 mois, sauf retrait anticipé.</p>
+              <p>La personne qui a rédigé un avis peut demander sa correction ou son retrait
+                en écrivant à <a className="underline" href="mailto:contact@samassbysam.com">
+                contact@samassbysam.com</a>. Les avis envoyés directement sur le site
+                ne font pas tous l'objet d'une vérification d'identité indépendante.</p>
+            </div>
+          </details>
           <div className="mt-7 space-y-4">
             {reviews.length === 0 ? (
               <div className="rounded-[24px] border border-[#dcd6c7] bg-white/65 p-7 text-sm leading-7 text-[#64756a]">
@@ -88,7 +112,8 @@ export default function ReviewsClient() {
                   </p>
                   <p className="mt-3 whitespace-pre-line text-sm leading-7 text-[#35493d]">{review.comment}</p>
                   <p className="mt-4 text-xs font-medium text-[#77837a]">
-                    {review.name} · {new Date(review.created_at).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
+                    {review.name} · Publié le {new Date(review.published_at || review.created_at).toLocaleDateString("fr-FR")}
+                    {review.visit_date && ` · Séance le ${new Date(review.visit_date + "T12:00:00Z").toLocaleDateString("fr-FR")}`}
                   </p>
                 </article>
               ))
@@ -131,6 +156,13 @@ export default function ReviewsClient() {
                   <input id="review-email" type="email" required maxLength={254} value={email}
                     onChange={(e) => setEmail(e.target.value)} autoComplete="email"
                     className="mt-2 w-full rounded-xl border border-[#d4d1c9] px-4 py-3 outline-none focus:border-[#1f5b49]"/>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium" htmlFor="review-visit-date">Date de votre séance</label>
+                  <input id="review-visit-date" type="date" required value={visitDate}
+                    max={parisToday()}
+                    onChange={(e) => setVisitDate(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-[#d4d1c9] px-4 py-3 outline-none focus:border-[#1f5b49]" />
                 </div>
                 <fieldset>
                   <legend className="text-sm font-medium">Votre appréciation</legend>

@@ -13,6 +13,7 @@ type Review = {
   public_name?: string;
   consent?: boolean;
   invitation_id?: string;
+  visit_date?: string;
   status: "pending" | "published" | "hidden" | "rejected" | "sent" | "failed" | "used";
   created_at: string;
 };
@@ -65,16 +66,35 @@ export default function AdminReviewsPage() {
   async function change(id: string, action: "publish" | "hide" | "reject") {
     setError("");
     setMessage("");
+    let reason = "";
+    if (action === "reject") {
+      const answer = window.prompt(
+        "Motif du refus à communiquer au client (injures, données privées, spam, hors sujet, etc.) :",
+        ""
+      );
+      if (answer === null) return;
+      reason = answer.trim();
+      if (reason.length < 10 || reason.length > 280) {
+        setError("Veuillez indiquer un motif entre 10 et 280 caractères.");
+        return;
+      }
+    }
     try {
       const response = await fetch("/api/admin/reviews/" + id, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, reason }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Action impossible.");
       await reload();
-      setMessage(action === "publish" ? "Témoignage publié." : action === "reject" ? "Avis refusé." : "Témoignage masqué.");
+      setMessage(action === "publish"
+        ? "Témoignage publié."
+        : action === "reject"
+          ? data.notification_sent
+            ? "Avis refusé. Le motif a été transmis au client par email."
+            : "Avis refusé, mais le message d'information n'a pas pu être envoyé. Contactez le client manuellement."
+          : "Témoignage masqué.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action impossible.");
     }
@@ -163,6 +183,7 @@ export default function AdminReviewsPage() {
                   Accord de publication : <strong className={review.consent ? "text-emerald-300" : "text-gray-400"}>{review.consent ? "Oui" : "Non"}</strong>
                   {review.consent && review.public_name ? " · Nom public : " + review.public_name : ""}
                   {" · Origine : "}{review.invitation_id ? "invitation personnalisée" : "formulaire du site"}
+                  {review.visit_date ? ` · Séance du ${new Date(review.visit_date + "T12:00:00Z").toLocaleDateString("fr-FR")}` : ""}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {review.status !== "published" && review.consent && (

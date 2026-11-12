@@ -12,6 +12,9 @@ export type ReviewRecord = {
   email: string;
   comment?: string;
   rating?: number;
+  visit_date?: string;
+  published_at?: string;
+  rejection_reason?: string;
   public_name?: string;
   consent?: boolean;
   status: "pending" | "published" | "hidden" | "rejected" | "sent" | "failed" | "used";
@@ -106,6 +109,16 @@ export async function createPublicReview(input: Record<string, unknown>) {
   const name = cleanName(input.name);
   const email = cleanEmail(input.email);
   const comment = String(input.comment || "").trim();
+  const visitDate = String(input.visit_date || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(visitDate)) {
+    throw new Error("Indiquez la date de votre séance.");
+  }
+  const visit = new Date(`${visitDate}T12:00:00.000Z`);
+  if (Number.isNaN(visit.getTime()) || visit.toISOString().slice(0, 10) !== visitDate ||
+      visit.getTime() > Date.now() ||
+      visit.getTime() < Date.now() - 3 * 366 * 86400_000) {
+    throw new Error("La date de séance n'est pas valide.");
+  }
   const rating = Number(input.rating);
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     throw new Error("Choisissez une note entre 1 et 5.");
@@ -142,6 +155,7 @@ export async function createPublicReview(input: Record<string, unknown>) {
   const now = new Date().toISOString();
   const item: ReviewRecord = {
     kind: "review", id: crypto.randomUUID(), name, email, comment, rating,
+    visit_date: visitDate,
     public_name: publicName, consent: input.consent, status: "pending",
     invitation_id: invitation?.id,
     created_at: now, updated_at: now,
@@ -157,28 +171,71 @@ export async function createPublicReview(input: Record<string, unknown>) {
 
 export async function getPublishedReviews() {
   const all = await getAllReviews();
+  const displayedAfter = new Date();
+  displayedAfter.setUTCFullYear(displayedAfter.getUTCFullYear() - 2);
   return all.filter((item) => item.kind === "review" &&
     item.status === "published" && item.consent === true &&
-    item.comment && item.rating && item.public_name)
+    item.comment && item.rating && item.public_name &&
+    Date.parse(item.published_at || item.updated_at) >= displayedAfter.getTime())
     .map((item) => ({
       id: item.id, name: item.public_name!, rating: item.rating!,
       comment: item.comment!, created_at: item.created_at,
-    }));
+      visit_date: item.visit_date || null,
+      published_at: item.published_at || item.updated_at,
+    }))
+    .sort((a, b) => b.published_at.localeCompare(a.published_at));
 }
 
-export async function changeReviewStatus(id: string, action: "publish" | "hide" | "reject") {
+export async function changeReviewStatus(
+  id: string,
+  action: "publish" | "hide" | "reject",
+  rejectionReason?: string
+) {
   const all = await getAllReviews();
   const item = all.find((entry) => entry.kind === "review" && entry.id === id);
   if (!item) throw new Error("Avis introuvable.");
   if (action === "publish" && (!item.consent || !item.public_name)) {
     throw new Error("La personne n'a pas autorisé l'affichage public.");
   }
+  if (action === "publish" &&
+      Date.parse(item.created_at) < Date.now() - 90 * 86400_000) {
+    throw new Error("Ce témoignage date de plus de 90 jours et ne peut plus être publié.");
+  }
+  const reason = (rejectionReason || "").trim();
+  if (action === "reject" && (reason.length < 10 || reason.length > 280)) {
+    throw new Error("Indiquez un motif de refus de 10 à 280 caractères.");
+  }
   const updated: ReviewRecord = {
     ...item,
     status: action === "publish" ? "published" : action === "reject" ? "rejected" : "hidden",
+    published_at: action === "publish" ? new Date().toISOString() : item.published_at,
+    rejection_reason: action === "reject" ? reason : item.rejection_reason,
     updated_at: new Date().toISOString(),
   };
   await append(updated);
+  if (action === "reject") {
+    const { user, password, from } = config();
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || "smtp.gmail.com",
+        port: Number(process.env.EMAIL_PORT || 587),
+        secure: Number(process.env.EMAIL_PORT || 587) === 465,
+        auth: { user, pass: password },
+      });
+      await transporter.sendMail({
+        from,
+        replyTo: "contact@samassbysam.com",
+        to: item.email,
+        subject: "À propos de votre avis sur SAMASS",
+        text:
+          `Bonjour ${item.name},\n\nMerci d'avoir partagé votre expérience avec SAMASS. Votre avis ne peut pas être publié pour la raison suivante : ${reason}\n\nVous pouvez nous contacter à contact@samassbysam.com pour en discuter.\n\nSam · SAMASS`,
+      });
+      return { ...updated, notification_sent: true };
+    } catch (error) {
+      console.error("SAMASS review rejection email failed", error);
+      return { ...updated, notification_sent: false };
+    }
+  }
   return updated;
 }
 

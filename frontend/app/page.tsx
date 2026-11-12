@@ -62,6 +62,8 @@ type PublicReview = {
   comment: string;
   rating: number;
   created_at: string;
+  visit_date?: string | null;
+  published_at?: string;
 };
 
 export default function HomePage() {
@@ -415,7 +417,10 @@ export default function HomePage() {
                   {"★".repeat(review.rating)}
                 </span>
                 <p>{review.comment}</p>
-                <small>{review.name}</small>
+                <small>
+                  {review.name} · Publié le {new Date(review.published_at || review.created_at).toLocaleDateString("fr-FR")}
+                  {review.visit_date && ` · Séance le ${new Date(review.visit_date + "T12:00:00Z").toLocaleDateString("fr-FR")}`}
+                </small>
               </article>
             ))}
           </div>

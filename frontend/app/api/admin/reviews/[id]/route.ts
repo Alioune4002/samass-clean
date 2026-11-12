@@ -6,11 +6,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (!(await isAdminAuthenticated())) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   try {
     const { id } = await context.params;
-    const body = (await request.json()) as { action?: string };
+    const body = (await request.json()) as { action?: string; reason?: string };
     if (body.action !== "publish" && body.action !== "hide" && body.action !== "reject") {
       return NextResponse.json({ error: "Action inconnue." }, { status: 400 });
     }
-    return NextResponse.json(await changeReviewStatus(id, body.action));
+    return NextResponse.json(await changeReviewStatus(id, body.action, body.reason));
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Action impossible." }, { status: 400 });
   }
