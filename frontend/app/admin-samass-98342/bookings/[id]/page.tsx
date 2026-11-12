@@ -16,6 +16,9 @@ export default function BookingDetailPage() {
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
+  const [inviting, setInviting] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState("");
+  const [reviewError, setReviewError] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -47,6 +50,28 @@ export default function BookingDetailPage() {
     } catch (err) {
       console.error("Erreur action réservation :", err);
       alert("Impossible de mettre à jour la réservation");
+    }
+  }
+
+  async function askForReview() {
+    if (!booking || booking.status !== "confirmed") return;
+    if (!window.confirm(`Envoyer une invitation à laisser un avis à ${booking.client_name} ?`)) return;
+    setInviting(true);
+    setReviewError("");
+    setReviewSuccess("");
+    try {
+      const response = await fetch("/api/admin/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ booking_id: id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Invitation impossible.");
+      setReviewSuccess("Demande d'avis envoyée. Le client recevra un lien personnel valable 30 jours.");
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "L'envoi a échoué.");
+    } finally {
+      setInviting(false);
     }
   }
 
@@ -104,6 +129,24 @@ export default function BookingDetailPage() {
           </span>
         </p>
       </div>
+
+      {booking.status === "confirmed" && (
+        <section className="rounded-xl border border-emerald-900 bg-[#17241f] p-5">
+          <h2 className="text-xl font-semibold text-white">Après la séance</h2>
+          <p className="mt-2 text-sm leading-6 text-gray-300">
+            Une fois le massage terminé, vous pouvez demander au client comment
+            il a vécu son expérience. L'email contient un lien d'avis personnel,
+            sans détail sur le massage reçu.
+          </p>
+          {reviewSuccess && <p className="mt-3 text-sm text-emerald-300" role="status">{reviewSuccess}</p>}
+          {reviewError && <p className="mt-3 text-sm text-red-300" role="alert">{reviewError}</p>}
+          <button type="button" disabled={inviting || Boolean(reviewSuccess)}
+            onClick={askForReview}
+            className="mt-4 rounded-full bg-emerald-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
+            {inviting ? "Envoi en cours…" : "Envoyer une demande d'avis"}
+          </button>
+        </section>
+      )}
 
       {/* ACTION BUTTONS */}
       <div className="flex gap-4">

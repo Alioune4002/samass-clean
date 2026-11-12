@@ -7,7 +7,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   try {
     const { id } = await context.params;
     const body = (await request.json()) as { action?: string };
-    if (body.action !== "publish" && body.action !== "hide") {
+    if (body.action !== "publish" && body.action !== "hide" && body.action !== "reject") {
       return NextResponse.json({ error: "Action inconnue." }, { status: 400 });
     }
     return NextResponse.json(await changeReviewStatus(id, body.action));

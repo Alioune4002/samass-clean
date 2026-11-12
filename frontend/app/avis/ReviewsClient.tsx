@@ -13,9 +13,14 @@ export default function ReviewsClient() {
   const [comment, setComment] = useState("");
   const [consent, setConsent] = useState(false);
   const [website, setWebsite] = useState("");
+  const [invitation, setInvitation] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setInvitation(new URLSearchParams(window.location.search).get("code") || "");
+  }, []);
 
   useEffect(() => {
     fetch("/api/reviews", { cache: "no-store" })
@@ -38,7 +43,7 @@ export default function ReviewsClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name, email, public_name: publicName || name.split(" ")[0],
-          rating, comment, consent, website,
+          rating, comment, consent, website, invitation,
         }),
       });
       const result = await response.json();
@@ -107,6 +112,12 @@ export default function ReviewsClient() {
                 Quelques mots suffisent pour partager votre expérience.
                 Votre témoignage ne sera publié que si vous le souhaitez.
               </p>
+              {invitation && (
+                <p className="mt-4 rounded-xl bg-[#e7f0e8] px-4 py-3 text-sm text-[#305849]">
+                  Vous utilisez une invitation personnelle. Indiquez l'adresse email
+                  sur laquelle vous avez reçu cette invitation.
+                </p>
+              )}
               <form onSubmit={submit} className="mt-7 space-y-5">
                 <div>
                   <label className="block text-sm font-medium" htmlFor="review-name">Votre nom</label>

@@ -23,6 +23,8 @@ export async function POST(request: Request) {
       "Votre avis doit contenir entre 20 et 1 400 caractères.",
       "Précisez si vous acceptez la publication de votre avis.",
       "Un avis a déjà été soumis avec cette adresse récemment.",
+      "Ce lien d'invitation n'est pas valide.",
+      "Cette invitation a expiré ou ne correspond pas à votre adresse email.",
     ];
     if (validation.includes(message)) {
       return NextResponse.json({ error: message }, { status: 400 });

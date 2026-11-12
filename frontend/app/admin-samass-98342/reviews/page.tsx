@@ -12,7 +12,8 @@ type Review = {
   comment?: string;
   public_name?: string;
   consent?: boolean;
-  status: "pending" | "published" | "hidden" | "sent" | "failed";
+  invitation_id?: string;
+  status: "pending" | "published" | "hidden" | "rejected" | "sent" | "failed" | "used";
   created_at: string;
 };
 
@@ -23,6 +24,7 @@ export default function AdminReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState("");
+  const [filter, setFilter] = useState<"pending" | "all" | "published" | "hidden">("pending");
   const [error, setError] = useState("");
 
   const reload = useCallback(async () => {
@@ -60,7 +62,7 @@ export default function AdminReviewsPage() {
     }
   }
 
-  async function change(id: string, action: "publish" | "hide") {
+  async function change(id: string, action: "publish" | "hide" | "reject") {
     setError("");
     setMessage("");
     try {
@@ -72,13 +74,18 @@ export default function AdminReviewsPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Action impossible.");
       await reload();
-      setMessage(action === "publish" ? "Témoignage publié." : "Témoignage masqué.");
+      setMessage(action === "publish" ? "Témoignage publié." : action === "reject" ? "Avis refusé." : "Témoignage masqué.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action impossible.");
     }
   }
 
   const reviews = rows.filter((row) => row.kind === "review");
+  const filteredReviews = reviews.filter((row) => {
+    if (filter === "all") return true;
+    if (filter === "hidden") return row.status === "hidden" || row.status === "rejected";
+    return row.status === filter;
+  });
   const invitations = rows.filter((row) => row.kind === "invitation");
 
   return (
@@ -115,6 +122,7 @@ export default function AdminReviewsPage() {
         <p className="mt-3 text-xs leading-5 text-gray-500">
           Ne demande pas uniquement des avis positifs et n'offre aucun avantage en échange.
           Le massage effectué n'est pas précisé dans l'email, par discrétion.
+          Chaque invitation comporte un lien personnel valable 30 jours, utilisable une seule fois.
         </p>
       </section>
 
@@ -123,15 +131,30 @@ export default function AdminReviewsPage() {
 
       <section>
         <h2 className="text-2xl font-semibold">Témoignages reçus <span className="text-gray-400">({reviews.length})</span></h2>
-        {loading ? <p className="mt-4 text-gray-400">Chargement…</p> : reviews.length === 0 ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {([
+            ["pending", "À valider"],
+            ["published", "Publiés"],
+            ["hidden", "Masqués / refusés"],
+            ["all", "Tous"],
+          ] as const).map(([value, label]) => (
+            <button key={value} type="button" onClick={() => setFilter(value)}
+              className={`rounded-full border px-4 py-2 text-xs ${filter === value
+                ? "border-emerald-500 bg-emerald-800 text-white"
+                : "border-gray-700 text-gray-300"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {loading ? <p className="mt-4 text-gray-400">Chargement…</p> : filteredReviews.length === 0 ? (
           <p className="mt-4 rounded-xl border border-gray-800 p-5 text-sm text-gray-400">Aucun témoignage reçu pour l'instant.</p>
         ) : (
           <div className="mt-4 space-y-4">
-            {reviews.map((review) => (
+            {filteredReviews.map((review) => (
               <article key={review.id} className="rounded-xl border border-gray-800 bg-[#1b1b1b] p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="font-semibold">{review.name} <span className="ml-2 text-sm font-normal text-gray-400">{review.email}</span></p>
-                  <span className="rounded-full bg-gray-800 px-3 py-1 text-xs">{review.status === "pending" ? "En attente" : review.status === "published" ? "Publié" : "Masqué"}</span>
+                  <span className="rounded-full bg-gray-800 px-3 py-1 text-xs">{review.status === "pending" ? "À valider" : review.status === "published" ? "Publié" : review.status === "rejected" ? "Refusé" : "Masqué"}</span>
                 </div>
                 <p className="mt-2 text-lg text-amber-300">{"★".repeat(review.rating || 0)}<span className="text-gray-600">{"☆".repeat(5 - (review.rating || 0))}</span></p>
                 <p className="mt-3 whitespace-pre-line text-sm leading-6 text-gray-200">{review.comment}</p>
@@ -139,15 +162,20 @@ export default function AdminReviewsPage() {
                   {new Date(review.created_at).toLocaleDateString("fr-FR")} ·
                   Accord de publication : <strong className={review.consent ? "text-emerald-300" : "text-gray-400"}>{review.consent ? "Oui" : "Non"}</strong>
                   {review.consent && review.public_name ? " · Nom public : " + review.public_name : ""}
+                  {" · Origine : "}{review.invitation_id ? "invitation personnalisée" : "formulaire du site"}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {review.status !== "published" && review.consent && (
                     <button onClick={() => change(review.id, "publish")}
                       className="rounded-lg bg-emerald-700 px-4 py-2 text-sm text-white">Publier</button>
                   )}
-                  {review.status !== "hidden" && (
+                  {review.status === "pending" && (
+                    <button onClick={() => change(review.id, "reject")}
+                      className="rounded-lg border border-red-800 px-4 py-2 text-sm text-red-200">Refuser</button>
+                  )}
+                  {review.status === "published" && (
                     <button onClick={() => change(review.id, "hide")}
-                      className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-200">Masquer</button>
+                      className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-200">Retirer du site</button>
                   )}
                 </div>
               </article>
@@ -162,7 +190,11 @@ export default function AdminReviewsPage() {
           {invitations.length === 0 ? <p className="text-sm text-gray-400">Aucune invitation envoyée.</p> : invitations.map((item) => (
             <div key={item.id} className="flex flex-wrap justify-between gap-2 rounded-lg border border-gray-800 px-4 py-3 text-sm">
               <span>{item.name} · <span className="text-gray-400">{item.email}</span></span>
-              <span className="text-gray-400">{new Date(item.created_at).toLocaleDateString("fr-FR")}</span>
+              <span className="text-gray-400">
+                {new Date(item.created_at).toLocaleDateString("fr-FR")}
+                {" · "}
+                {item.status === "used" ? "Avis reçu" : item.status === "failed" ? "Envoi échoué" : "Envoyée"}
+              </span>
             </div>
           ))}
         </div>

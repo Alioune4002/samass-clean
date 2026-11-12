@@ -56,27 +56,32 @@ const serviceImages: Record<string, string> = {
   "Massage Tantrique": "/images/samass-room-final-2.webp",
 };
 
-const notes = [
-  {
-    text: "J’ai senti que la séance s’adaptait vraiment à moi, pas l’inverse.",
-    author: "Maxime",
-  },
-  {
-    text: "Le plus marquant, c’est la sensation de calme qui reste après.",
-    author: "Alex",
-  },
-  {
-    text: "Simple, rassurant, très humain. Je suis reparti beaucoup plus léger.",
-    author: "Florian",
-  },
-];
+type PublicReview = {
+  id: string;
+  name: string;
+  comment: string;
+  rating: number;
+  created_at: string;
+};
 
 export default function HomePage() {
   const [services, setServices] = useState<Service[]>([]);
+  const [publishedReviews, setPublishedReviews] = useState<PublicReview[]>([]);
   const [selectedNeed, setSelectedNeed] = useState<NeedKey>("sensation");
 
   useEffect(() => {
     void getServices().then(setServices).catch(() => setServices([]));
+  }, []);
+
+  useEffect(() => {
+    let canceled = false;
+    fetch("/api/reviews", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : [])
+      .then((reviews: PublicReview[]) => {
+        if (!canceled && Array.isArray(reviews)) setPublishedReviews(reviews.slice(0, 3));
+      })
+      .catch(() => undefined);
+    return () => { canceled = true; };
   }, []);
 
   useEffect(() => {
@@ -399,18 +404,32 @@ export default function HomePage() {
       <section className="ritual-notes" data-ritual-reveal>
         <div className="ritual-section-intro">
           <p className="ritual-eyebrow">APRÈS LA SÉANCE</p>
-          <h2>Quelques mots laissés en repartant.</h2>
+          <h2>{publishedReviews.length ? "Quelques mots après la séance." : "Votre expérience a sa place ici."}</h2>
         </div>
 
-        <div className="ritual-note-grid">
-          {notes.map((note) => (
-            <article key={note.author}>
-              <span className="ritual-note-mark">“</span>
-              <p>{note.text}</p>
-              <small>{note.author}</small>
-            </article>
-          ))}
-        </div>
+        {publishedReviews.length ? (
+          <div className="ritual-note-grid">
+            {publishedReviews.map((review) => (
+              <article key={review.id}>
+                <span className="ritual-note-mark" aria-label={`${review.rating} étoiles sur 5`}>
+                  {"★".repeat(review.rating)}
+                </span>
+                <p>{review.comment}</p>
+                <small>{review.name}</small>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="max-w-xl space-y-5 text-[#c7d7ca]">
+            <p className="text-lg leading-8">
+              Chaque séance est unique. Si vous avez vécu un moment chez SAMASS,
+              vous pouvez partager vos impressions, à votre manière.
+            </p>
+            <Link href="/avis" className="ritual-quiet-link">
+              Partager votre expérience ↗
+            </Link>
+          </div>
+        )}
       </section>
 
       <section className="ritual-closing" data-ritual-reveal>
